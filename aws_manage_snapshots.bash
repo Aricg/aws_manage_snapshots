@@ -145,7 +145,7 @@ if [[ $del == true ]]; then
                                         echo "Example output: ec2-delete-snapshot $key "$tbd""
 				else
 					log "deleteing $tbd of $vol "${client%.*}" "
-                                        # ec2-delete-snapshot $key "$tbd"
+                                        ec2-delete-snapshot $key "$tbd"
 				fi
 
 			done
