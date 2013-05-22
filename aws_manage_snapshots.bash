@@ -201,7 +201,7 @@ usage: $0 [OPTIONS]
 
 Example Inventory mode :$0  -i -l $LOGDIR -k $KEYDIR
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
-Example Delete  mode   :$0  -d $numbertokeep
+Example Delete  mode   :$0  -d
 Note: keys must be in the format projectname.key and projectname.pub
 
 detected accounts:
