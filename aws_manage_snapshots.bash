@@ -138,7 +138,7 @@ if [[ $del == true ]]; then
 	do
 		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
 
-		for tbd in $(cat tmp_info  | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep" | awk '{print $1}')
+		for tbd in $(cat tmp_info  | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
 			 do
 				if [[ $test == true ]]; then
                                         echo "deleteing $tbd of $vol "${client%.*}" "
