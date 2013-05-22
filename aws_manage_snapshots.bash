@@ -117,6 +117,7 @@ ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 
 }
 
 getdel() {
+
 echo "number to keep $numbertokeep"
 log "running ec2-describe-snapshot to find "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
 	if [[ $test == true ]]; then log "this is only a test"; fi
@@ -132,7 +133,6 @@ ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " "
 delsnap () {
 
 if [[ $del == true ]]; then
-
 
 	for vol in "${getdel[@]}";
 	do
@@ -155,30 +155,30 @@ fi
 }
 
 makesnap () {
-#test
+
 if [[ $snapshot == true ]]; then
+
 	for vol in "${getvol[@]}";
-	do
+		do
+	
+			instance=$(echo $vol | awk '{print $1}')
+			device=$(echo $vol | awk '{print $2}')
+			volume=$(echo $vol | awk '{print $3}')
 
-		instance=$(echo $vol | awk '{print $1}')
-		device=$(echo $vol | awk '{print $2}')
-		volume=$(echo $vol | awk '{print $3}')
-
-	#Actual
-	#I need to call ec2tag with the ouput if the snapshot command so I made the output a variable, probably not the best thing to do. but. meh.
+		#I need to call ec2tag with the ouput if the snapshot command so I made the output a variable, probably not the best thing to do. but. meh.
 		if [[ $test == true ]]; then
 			log "TEST COMMAND OUTPUT : ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
 		else
-			if snap="$(AAAAAec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" | awk '{print $2}')"; then
-#			if echo "FOOO"; then
+			if snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" | awk '{print $2}')"; then
+			
 				log "Snapshot "$snap" succeeded for client "${client%.*}" "
-			ec2tag $key "$snap" --tag Name="Backup of "$volume" of "$device" of "$instance""
+				ec2tag $key "$snap" --tag Name="Backup of "$volume" of "$device" of "$instance""
+			
 			else
 				status=$?
 				log "This command failed: ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
 				log "With this status $status"
 			fi
-
 		fi
 	done
 fi
