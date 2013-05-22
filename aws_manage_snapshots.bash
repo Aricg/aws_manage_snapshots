@@ -220,21 +220,22 @@ whoareyou
 if [[ -z "$@" ]]; then usage
 fi
 
-while getopts ":tlkhids:" OPTION
+while getopts ":tl:k:hid:s" OPTION
 do
 
-	case $OPTION in
-		t ) test=true ;;
-		l ) LOGDIR="$OPTARG" ;;
-		k ) KEYDIR="$OPTARG" ;;
-		i ) inventory=true ;;
-		s ) snapshot=true ;;
-		d ) del=true ;;
-		h ) usage; exit;;
-		\? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
-#		:  ) echo "Missing option argument for -$OPTARG" >&2; exit 1;;
-		*  ) echo "Unimplimented option: -$OPTARG" >&2; exit 1;;
-	esac
+        case $OPTION in
+                t ) test=true ;;
+                l ) LOGDIR="$OPTARG" ;;
+                k ) KEYDIR="$OPTARG" ;;
+                i ) inventory=true ;;
+                s ) snapshot=true ;;
+                d ) del=true
+                numberofsnaps="$OPTARG";;
+                h ) usage; exit;;
+                \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
+#               :  ) echo "Missing option argument for -$OPTARG" >&2; exit 1;;
+                *  ) echo "Unimplimented option: -$OPTARG" >&2; exit 1;;
+        esac
 done
 
 get_clients "$@"
