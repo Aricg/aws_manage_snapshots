@@ -21,7 +21,7 @@ shopt -s extglob nullglob dotglob;
 version="1.1"
 LOG="snapshots.log"
 LOGDIR="/var/log/aws/"
-KEYDIR="/home/ubuntu/KEYS/"
+KEYDIR="/etc/ssl/private/aws/"
 certs=("$KEYDIR"*.key)
 numbertokeep=15
 
