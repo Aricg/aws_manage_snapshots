@@ -18,7 +18,7 @@
 ##########################
 shopt -s extglob nullglob dotglob;
 
-version="1.1"
+version="1.2"
 LOG="snapshots.log"
 LOGDIR="/var/log/aws/"
 KEYDIR="/etc/ssl/private/aws/"
@@ -74,7 +74,7 @@ if [[ $snapshot == true ]] && [[ $del == true ]]; then
 fi
 
 #these wont change often, so generating once almost accesptable
-if [[ ! -e tmp_zones ]]; then
+if [[ ! -s tmp_zones ]]; then
 	ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
 fi
 
