@@ -230,7 +230,7 @@ do
                 i ) inventory=true ;;
                 s ) snapshot=true ;;
                 d ) del=true
-                numberofsnaps="$OPTARG";;
+                numbertokeep="$OPTARG";;
                 h ) usage; exit;;
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
 #               :  ) echo "Missing option argument for -$OPTARG" >&2; exit 1;;
