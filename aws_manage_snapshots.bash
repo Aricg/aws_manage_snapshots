@@ -118,7 +118,6 @@ ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 
 
 getdel() {
 
-echo "number to keep $numbertokeep"
 log "running ec2-describe-snapshot to find "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
 	if [[ $test == true ]]; then log "this is only a test"; fi
 ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2 > tmp_info
@@ -129,6 +128,15 @@ ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " "
 	done < <(cat tmp_info | awk '{ print $2 }' | sort | uniq )
 }
 
+getnumkeep() {
+	getnumkeep=()
+	while read -d $'\n'; do
+		getnumkeep+=("$REPLY")
+	done < <(cat tmp_info  | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
+
+
+}
+
 
 delsnap () {
 
@@ -136,15 +144,16 @@ if [[ $del == true ]]; then
 
 	for vol in "${getdel[@]}";
 	do
+		getnumkeep "$@"
 		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
 
-		for tbd in $(cat tmp_info  | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
-			 do
+		for tbd in "${getnumkeep[@]}";
+			do
 				if [[ $test == true ]]; then
-                                        echo "deleteing $tbd of $vol "${client%.*}" "
+                                        echo "deleting $tbd of $vol "
                                         echo "Example output: ec2-delete-snapshot $key "$tbd""
 				else
-					log "deleteing $tbd of $vol "${client%.*}" "
+					log "deleting $tbd of $vol"
                                         ec2-delete-snapshot $key "$tbd"
 				fi
 
@@ -160,7 +169,7 @@ if [[ $snapshot == true ]]; then
 
 	for vol in "${getvol[@]}";
 		do
-	
+
 			instance=$(echo $vol | awk '{print $1}')
 			device=$(echo $vol | awk '{print $2}')
 			volume=$(echo $vol | awk '{print $3}')
@@ -170,10 +179,10 @@ if [[ $snapshot == true ]]; then
 			log "TEST COMMAND OUTPUT : ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
 		else
 			if snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" | awk '{print $2}')"; then
-			
+
 				log "Snapshot "$snap" succeeded for client "${client%.*}" "
 				ec2tag $key "$snap" --tag Name="Backup of "$volume" of "$device" of "$instance""
-			
+
 			else
 				status=$?
 				log "This command failed: ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
@@ -233,7 +242,6 @@ do
                 numbertokeep="$OPTARG";;
                 h ) usage; exit;;
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
-#               :  ) echo "Missing option argument for -$OPTARG" >&2; exit 1;;
                 *  ) echo "Unimplimented option: -$OPTARG" >&2; exit 1;;
         esac
 done
