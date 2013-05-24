@@ -73,7 +73,7 @@ if [[ $snapshot == true ]] && [[ $del == true ]]; then
 	echo  "incompatable options"; exit 1
 fi
 
-#these wont change often, so generating once almost accesptable
+#these wont change often, so generating once almost acceptable
 if [[ ! -s tmp_zones ]]; then
 	ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
 fi
