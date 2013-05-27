@@ -240,7 +240,6 @@ do
                 numbertokeep="$OPTARG";;
                 h ) usage; exit;;
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
-                *  ) echo "Unimplimented option: -$OPTARG" >&2; exit 1;;
         esac
 done
 
