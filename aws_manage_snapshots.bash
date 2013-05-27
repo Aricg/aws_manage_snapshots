@@ -202,13 +202,13 @@ usage: $0 [OPTIONS]
 	-t	Run in test mode
 	-s	Run in snapshot mode
 	-i	Run in inventory mode
-	-d	Run in delete old snapshots mode (keeps 15 snapshots of each attached volume)
+	-d #    Run in delete old snapshots mode ( # = number of snapshots to keep) 
 	-l	Choose log dir
 	-k	Choose key dir
 
 Example Inventory mode :$0  -i -l $LOGDIR -k $KEYDIR
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
-Example Delete  mode   :$0  -d
+Example Delete  mode   :$0  -d 15
 Note: keys must be in the format projectname.key and projectname.pub
 
 detected accounts:
