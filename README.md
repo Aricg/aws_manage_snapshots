@@ -12,7 +12,7 @@ ec2-create and delete snapshots for any number of 509.x key-paris with the aws c
 	  -t	Run in test mode
 	  -s	Run in snapshot mode
 	  -i	Run in inventory mode
-	  -d #  Run in delete old snapshots mode
+	  -d #  Run in delete old snapshots mode ( # = number of snapshots to keep) 
 	  -l	Choose log dir
 	  -k	Choose key dir
 
