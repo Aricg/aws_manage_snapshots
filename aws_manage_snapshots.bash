@@ -23,7 +23,6 @@ LOG="snapshots.log"
 LOGDIR="/var/log/aws/"
 KEYDIR="/etc/ssl/private/aws/"
 certs=("$KEYDIR"*.key)
-numbertokeep=15
 
 whoareyou () {
 if [[ $(whoami) != "root" ]]
