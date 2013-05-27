@@ -152,7 +152,7 @@ if [[ $del == true ]]; then
                                         echo "Example output: ec2-delete-snapshot $key "$tbd""
 				else
 					log "deleting $tbd of $vol"
-                                        ec2-delete-snapshot $key "$tbd"
+                                        ec2-delete-snapshot $key $tbd
 				fi
 
 			done
