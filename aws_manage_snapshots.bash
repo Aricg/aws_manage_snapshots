@@ -16,7 +16,6 @@
 # Usage of the works is permitted provided that this instrument is retained with the works, so that any entity that uses the works is notified of this instrument.
 # DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
 ##########################
-shopt -s extglob nullglob dotglob;
 
 version="1.2"
 LOG="snapshots.log"
