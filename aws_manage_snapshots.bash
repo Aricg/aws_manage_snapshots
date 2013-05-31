@@ -178,7 +178,7 @@ if [[ $snapshot == true ]]; then
 		else
 			if snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" | awk '{print $2}')"; then
 
-				log "Snapshot "$snap" succeeded for client "${client%.*}" "
+				log "Snapshot "$snap" succeeded of "$volume" of "$device" of "$instance" for client "${client%.*}" "
 				ec2tag $key "$snap" --tag Name="Backup of "$volume" of "$device" of "$instance""
 
 			else
