@@ -151,7 +151,7 @@ if [[ $del == true ]]; then
                                         echo "deleting $tbd of $vol "
                                         echo "Example output: ec2-delete-snapshot $key "$tbd""
 				else
-					log "deleting $tbd of $vol"
+					log "deleting $tbd of $vol for "$(basename "${client%.*}")""
                                         ec2-delete-snapshot $key $tbd
 				fi
 
@@ -178,7 +178,7 @@ if [[ $snapshot == true ]]; then
 		else
 			if snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" | awk '{print $2}')"; then
 
-				log "Snapshot "$snap" succeeded of "$volume" of "$device" of "$instance" for client "${client%.*}" "
+				log "Snapshot "$snap" succeeded of "$volume" of "$device" of "$instance" for client "$(basename "${client%.*}""
 				ec2tag $key "$snap" --tag Name="Backup of "$volume" of "$device" of "$instance""
 
 			else
