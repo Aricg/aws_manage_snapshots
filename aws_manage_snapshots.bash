@@ -42,7 +42,7 @@ if [ ! -f "$LOGDIR""$LOG" ]; then
         log "Creating Log File"
 fi
 
-	echo "$(date "+%Y/%m/%d %H:%M:%S"): $@" | tee -a "$LOGDIR""$LOG"
+	echo "$(date "+%Y/%m/%d %H:%M:%S"): $@ " 2>&1 | tee -a "$LOGDIR""$LOG"
 }
 
 #Keys must be in the format projectname.key and projectname.pub
@@ -107,6 +107,7 @@ getvol() {
 log "running ec2-describe-instances to find "$(basename ${client%.*})"'s volumes in $zone avaliablity zone (this can take a while)"
 	if [[ $test == true ]]; then log "this is only a test"; fi
 ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' > tmp_info
+#cat tmp_info
 
 	getvol=()
 	while read -d $'\n'; do
@@ -176,17 +177,20 @@ if [[ $snapshot == true ]]; then
 		if [[ $test == true ]]; then
 			log "TEST COMMAND OUTPUT : ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
 		else
-			if snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" | awk '{print $2}')"; then
+        snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" 2>&1)"
+        status=$?
+        log $(echo "$snap")
 
-				log "Snapshot "$snap" succeeded of "$volume" of "$device" of "$instance" for client "$(basename "${client%.*}")""
-				ec2tag $key "$snap" --tag Name="Backup of "$volume" of "$device" of "$instance""
-
-			else
-				status=$?
+				if [ $status -ne 0 ]; then
 				log "This command failed: ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
 				log "With this status $status"
+
+        else
+        tag=$(echo $snap | awk '{print $2}')
+				log "Snapshot "$tag" succeeded of "$volume" of "$device" of "$instance" for client "$(basename "${client%.*}")""
+				log ec2tag $key "$tag" --tag Name="Backup of "$volume" of "$device" of "$instance""
 			fi
-		fi
+      fi
 	done
 fi
 }
