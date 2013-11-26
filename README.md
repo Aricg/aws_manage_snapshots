@@ -26,3 +26,7 @@ ec2-create and delete snapshots for any number of 509.x key-paris with the aws c
     bar
     baz
 
+
+Requirements
+============
+ec2-api-tools ec2-ami-tools -- avaliable in ubntu 12.04 multiverse repo
