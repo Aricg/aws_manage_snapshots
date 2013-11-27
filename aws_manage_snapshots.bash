@@ -31,6 +31,12 @@ then
 fi
 }
 
+logandexit () {
+if [ $status -ne 0 ]; then
+  log "Script exited "$status""; exit "$status"
+fi
+}
+
 log() {
 if [ ! -d "$LOGDIR" ]; then
   mkdir -p "$LOGDIR" > /dev/null 2>&1
@@ -72,7 +78,7 @@ do
 
     if [[ $inventory == true ]];
 			then
-			inventory
+        inventory
 
     elif [[ $del == true ]];
 			then
@@ -117,7 +123,7 @@ if [[ $test == true ]]; then log "this is only a test"; fi
 }
 
 getnumkeep() {
-
+#TODO make sure $numbertokeep is not empty
 	getnumkeep=()
 	while read -d $'\n'; do
 		getnumkeep+=("$REPLY")
@@ -127,36 +133,32 @@ getnumkeep() {
 
 
 delsnap () {
-if [[ $del == true ]]; then
-
 	for vol in "${getdel[@]}";
 	do
 
 		getnumkeep "$@"
 		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
 
-		for tbd in "${getnumkeep[@]}";
-			do
-				if [[ $test == true ]]; then
+      for tbd in "${getnumkeep[@]}";
+        do
+          if [[ $test == true ]]; then
+            echo "Example delete of $vol's snapshot: ec2-delete-snapshot $key "$tbd" "
+          else
 
-          echo "deleting $tbd of $vol "
-          #echo "Example output: ec2-delete-snapshot $key "$tbd""
+            #Delete Volume
+            dodelete=$(ec2-delete-snapshot $key $tbd)
+            
+            #Check errors and log
+            status=$?
+            log $(cat "$dodelete")
+            logandexit "$status"
 
-				else
-
-					log "deleting $tbd of $vol for "$(basename "${client%.*}")""
-          #TODO catch errors
-          ec2-delete-snapshot $key $tbd
-          
-				fi
-			done
+          fi
+      done
 	done
-fi
 }
 
 makesnap () {
-
-if [[ $snapshot == true ]]; then
 
 	for vol in "${getvol[@]}";
 		do
@@ -166,33 +168,47 @@ if [[ $snapshot == true ]]; then
 			volume=$(echo $vol | awk '{print $3}')
 
 		if [[ $test == true ]]; then
-			log "TEST COMMAND OUTPUT : ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
+			echo "TEST COMMAND OUTPUT : ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
+
 		else
 
-        snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" 2>&1)"
-        status="$?"
-        log $(echo "$snap")
-        #TODO make this error catching mechanism a function
-				if [ $status -ne 0 ]; then
-          log "This command failed: ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" with this exit code: "$status""
-        else
-          #TODO Catch errors
-          tag=$(echo $snap | awk '{print $2}')
-          log "Snapshot "$tag" succeeded of "$volume" of "$device" of "$instance" for client "$(basename "${client%.*}")""
-          log ec2tag $key "$tag" --tag Name="Backup of "$volume" of "$device" of "$instance""
-        fi
+      #Take Snapshot
+      dosnap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" 2>&1)"
+
+      #Check Errors and Log
+      status="$?"
+      log $(echo "$dosnap")
+      logandexit "$status"
+
+      #Tag Snapshot
+      tag=$(echo "$snap" | awk '{print $2}')
+      dotag="$(ec2tag $key "$tag" --tag Name="Backup of "$volume" of "$device" of "$instance"" 2>&1)"
+
+      #Check Errors and Log
+      status="$?"
+      log $(echo "$dotag")
+      logandexit "$status"
+
       fi
 	done
-fi
 }
 
 inventory () {
-for description in volumes snapshots instances
-do
-        log "Logging "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR"instances-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
-        #TODO Catch errors here
-        ec2-describe-"$description" --headers $key > "$LOGDIR"instances-"$zone"-"$(basename ${client%.*})"
-done
+  for description in volumes snapshots instances
+    do
+
+        echo "Logging "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
+
+        #Log an inventory of all infomation parsed by this script
+        doinventory=$(ec2-describe-"$description" --headers $key)
+
+        #Check errors and log
+        status="$?"
+          if ! [[ -z $doinventory ]]; then
+          echo "$doinventory" > "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"
+          fi
+        logandexit "$status"
+    done
 }
 
 
@@ -249,7 +265,7 @@ do
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
         esac
 done
-                if [[ -z "$numbertokeep" ]] && del=true; then 
+                if [[ -z "$numbertokeep" ]] || del=true; then 
                   echo "You must provide a number of snapshots to keep" 
                 fi  
 
