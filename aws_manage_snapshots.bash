@@ -17,7 +17,7 @@
 # DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
 ##########################
 
-version="1.2"
+version="1.3"
 LOG="snapshots.log"
 LOGDIR="/var/log/aws/"
 KEYDIR="/etc/ssl/private/aws/"
@@ -31,7 +31,6 @@ then
 fi
 }
 
-#pretty logs
 log() {
 if [ ! -d "$LOGDIR" ]; then
   mkdir -p "$LOGDIR" > /dev/null 2>&1
@@ -39,29 +38,18 @@ fi
 
 if [ ! -f "$LOGDIR""$LOG" ]; then
 	touch "$LOGDIR""$LOG"
-        log "Creating Log File"
+  log "Creating Log File"
 fi
-
 	echo "$(date "+%Y/%m/%d %H:%M:%S"): $@ " 2>&1 | tee -a "$LOGDIR""$LOG"
 }
 
-#Keys must be in the format projectname.key and projectname.pub
-get_clients()
-{
-
+get_clients() {
+#certs must be in $KEYDIR and in the format projectname.key and projectname.pub
 for client in "${certs[@]}";
 do
 	describe_instances "$@"
 done
 
-}
-
-inventory () {
-for description in volumes snapshots instances
-do
-                 log "Logging "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR"instances-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
-                        ec2-describe-"$description" --headers $key > "$LOGDIR"instances-"$zone"-"$(basename ${client%.*})"
-done
 }
 
 #Get a list of avaliable avaliablility zones to ensure we snapshot ATTACHED volmes in all zones
@@ -71,93 +59,97 @@ if [[ $snapshot == true ]] && [[ $del == true ]]; then
 	echo  "incompatable options"; exit 1
 fi
 
-#these wont change often, so generating once almost acceptable
 if [[ ! -s tmp_zones ]]; then
+  #TODO catch errors
+  #TODO regenerate tmp_zones if it is more than $x days old, Amazon has been known to add new data centers ;)
 	ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
 fi
 
 #we must check each zone for each client.
 for zone in $(cat tmp_zones)
-	do
-		key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
+do
+	key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
 
-		if [[ $inventory == true ]];
+    if [[ $inventory == true ]];
 			then
 			inventory
 
-
-		elif [[ $del == true ]];
+    elif [[ $del == true ]];
 			then
-				getdel
-				delsnap
+        getdel
+        delsnap
 
-
-			#this prepares the information to be parsed.
 		elif [[ $snapshot == true ]];
 			then
 				getvol
 				makesnap
 		fi
-
-	done
+done
 }
 
 getvol() {
+if [[ $test == true ]]; then log "this is only a test"; fi
 
-log "running ec2-describe-instances to find "$(basename ${client%.*})"'s volumes in $zone avaliablity zone (this can take a while)"
-	if [[ $test == true ]]; then log "this is only a test"; fi
-ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' > tmp_info
-#cat tmp_info
+  log "running ec2-describe-instances to find "$(basename ${client%.*})"'s volumes in $zone avaliablity zone (this can take a while)"
 
-	getvol=()
-	while read -d $'\n'; do
-		getvol+=("$REPLY")
-	done < <(cat tmp_info)
+  #TODO catch errors, possibly log tmp.info it's interesting to audit
+  ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' > tmp_info
+
+    getvol=()
+    while read -d $'\n'; do
+      getvol+=("$REPLY")
+    done < <(cat tmp_info)
 }
 
 getdel() {
+if [[ $test == true ]]; then log "this is only a test"; fi
 
-log "running ec2-describe-snapshot to find "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
-	if [[ $test == true ]]; then log "this is only a test"; fi
-ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2 > tmp_info
+  log "running ec2-describe-snapshot to find "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
 
-	getdel=()
-	while read -d $'\n'; do
-		getdel+=("$REPLY")
-	done < <(cat tmp_info | awk '{ print $2 }' | sort | uniq )
+  #TODO catch errors here, log tmp_info, and possibly rewrite it, as its infomation we need to delete snapshots and should be named more clearly
+  ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2 > tmp_info
+
+    getdel=()
+    while read -d $'\n'; do
+      getdel+=("$REPLY")
+    done < <(cat tmp_info | awk '{ print $2 }' | sort | uniq )
+
 }
 
 getnumkeep() {
+
 	getnumkeep=()
 	while read -d $'\n'; do
 		getnumkeep+=("$REPLY")
 	done < <(cat tmp_info  | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
 
-
 }
 
 
 delsnap () {
-
 if [[ $del == true ]]; then
 
 	for vol in "${getdel[@]}";
 	do
+
 		getnumkeep "$@"
 		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
 
 		for tbd in "${getnumkeep[@]}";
 			do
 				if [[ $test == true ]]; then
-                                        echo "deleting $tbd of $vol "
-                                        echo "Example output: ec2-delete-snapshot $key "$tbd""
+
+          echo "deleting $tbd of $vol "
+          #echo "Example output: ec2-delete-snapshot $key "$tbd""
+
 				else
+
 					log "deleting $tbd of $vol for "$(basename "${client%.*}")""
-                                        ec2-delete-snapshot $key $tbd
+          #TODO catch errors
+          ec2-delete-snapshot $key $tbd
+          
 				fi
-
 			done
-
 	done
 fi
 }
@@ -173,27 +165,36 @@ if [[ $snapshot == true ]]; then
 			device=$(echo $vol | awk '{print $2}')
 			volume=$(echo $vol | awk '{print $3}')
 
-		#I need to call ec2tag with the ouput if the snapshot command so I made the output a variable, probably not the best thing to do. but. meh.
 		if [[ $test == true ]]; then
 			log "TEST COMMAND OUTPUT : ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
 		else
+
         snap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" 2>&1)"
-        status=$?
+        status="$?"
         log $(echo "$snap")
-
+        #TODO make this error catching mechanism a function
 				if [ $status -ne 0 ]; then
-				log "This command failed: ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
-				log "With this status $status"
-
+          log "This command failed: ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" with this exit code: "$status""
         else
-        tag=$(echo $snap | awk '{print $2}')
-				log "Snapshot "$tag" succeeded of "$volume" of "$device" of "$instance" for client "$(basename "${client%.*}")""
-				log ec2tag $key "$tag" --tag Name="Backup of "$volume" of "$device" of "$instance""
-			fi
+          #TODO Catch errors
+          tag=$(echo $snap | awk '{print $2}')
+          log "Snapshot "$tag" succeeded of "$volume" of "$device" of "$instance" for client "$(basename "${client%.*}")""
+          log ec2tag $key "$tag" --tag Name="Backup of "$volume" of "$device" of "$instance""
+        fi
       fi
 	done
 fi
 }
+
+inventory () {
+for description in volumes snapshots instances
+do
+        log "Logging "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR"instances-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
+        #TODO Catch errors here
+        ec2-describe-"$description" --headers $key > "$LOGDIR"instances-"$zone"-"$(basename ${client%.*})"
+done
+}
+
 
 
 usage() {
@@ -206,7 +207,7 @@ usage: $0 [OPTIONS]
 	-t	Run in test mode
 	-s	Run in snapshot mode
 	-i	Run in inventory mode
-	-d #    Run in delete old snapshots mode ( # = number of snapshots to keep) 
+	-d # Run in delete old snapshots mode ( # = number of snapshots to keep) default 7 
 	-l	Choose log dir
 	-k	Choose key dir
 
@@ -217,6 +218,7 @@ Note: keys must be in the format projectname.key and projectname.pub
 
 detected accounts:
 EOF
+
 for client in "${certs[@]}";
 do
 	basename "${client%.*}"
@@ -224,16 +226,17 @@ done
 
 echo ""
 exit 1
+
 }
 
 whoareyou
 
 if [[ -z "$@" ]]; then usage
 fi
+#TODO optionally only snap the volumes of a single client
 
 while getopts ":tl:k:hid:s" OPTION
 do
-
         case $OPTION in
                 t ) test=true ;;
                 l ) LOGDIR="$OPTARG" ;;
@@ -246,5 +249,8 @@ do
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
         esac
 done
+                if [[ -z "$numbertokeep" ]] && del=true; then 
+                  echo "You must provide a number of snapshots to keep" 
+                fi  
 
 get_clients "$@"
