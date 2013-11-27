@@ -61,12 +61,9 @@ done
 #Get a list of avaliable avaliablility zones to ensure we snapshot ATTACHED volmes in all zones
 describe_instances() {
 
-if [[ $snapshot == true ]] && [[ $del == true ]]; then
-	echo  "incompatable options"; exit 1
-fi
-
 if [[ ! -s tmp_zones ]]; then
   #TODO catch errors
+  #TODO choose DC to backup as opt arg
   #TODO regenerate tmp_zones if it is more than $x days old, Amazon has been known to add new data centers ;)
 	ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
 fi
@@ -113,12 +110,17 @@ if [[ $test == true ]]; then log "this is only a test"; fi
   log "running ec2-describe-snapshot to find "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
 
   #TODO catch errors here, log tmp_info, and possibly rewrite it, as its infomation we need to delete snapshots and should be named more clearly
-  ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2 > tmp_info
 
+  descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
+  runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
+  log ""$(basename ${client%.*})"'s Running Volumes in "$zone":"
+  log $runningvolumes 
+  
+  echo "$descsnap" > tmp_info
     getdel=()
-    while read -d $'\n'; do
+    while read -d $' '; do
       getdel+=("$REPLY")
-    done < <(cat tmp_info | awk '{ print $2 }' | sort | uniq )
+    done < <(echo $runningvolumes )
 
 }
 
@@ -181,7 +183,7 @@ makesnap () {
       logandexit "$status"
 
       #Tag Snapshot
-      tag=$(echo "$snap" | awk '{print $2}')
+      tag=$(echo "$dosnap" | awk '{print $2}')
       dotag="$(ec2tag $key "$tag" --tag Name="Backup of "$volume" of "$device" of "$instance"" 2>&1)"
 
       #Check Errors and Log
@@ -223,13 +225,13 @@ usage: $0 [OPTIONS]
 	-t	Run in test mode
 	-s	Run in snapshot mode
 	-i	Run in inventory mode
-	-d # Run in delete old snapshots mode ( # = number of snapshots to keep) default 7 
+	-d  Delete all but X snapshots for each volume
 	-l	Choose log dir
 	-k	Choose key dir
 
 Example Inventory mode :$0  -i -l $LOGDIR -k $KEYDIR
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
-Example Delete  mode   :$0  -d 15
+Example Delete mode saving the 15 most recent snapshots  :$0  -d 15
 Note: keys must be in the format projectname.key and projectname.pub
 
 detected accounts:
@@ -249,9 +251,10 @@ whoareyou
 
 if [[ -z "$@" ]]; then usage
 fi
+
 #TODO optionally only snap the volumes of a single client
 
-while getopts ":tl:k:hid:s" OPTION
+while getopts "tl:k:isd:h" OPTION
 do
         case $OPTION in
                 t ) test=true ;;
@@ -259,14 +262,19 @@ do
                 k ) KEYDIR="$OPTARG" ;;
                 i ) inventory=true ;;
                 s ) snapshot=true ;;
-                d ) del=true
-                numbertokeep="$OPTARG";;
+                d ) numbertokeep="$OPTARG"
+                del=true 
+                ;;
                 h ) usage; exit;;
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
         esac
 done
-                if [[ -z "$numbertokeep" ]] || del=true; then 
-                  echo "You must provide a number of snapshots to keep" 
-                fi  
+#                if [[ -z "$numbertokeep" ]] && [[ $del = true ]]; then 
+#                  echo "You must provide a number of snapshots to keep"; exit 1 
+#                fi  
+
+                if [[ $snapshot == "true" ]] && [[ $del == "true" ]]; then
+                  echo  "incompatable options"; exit 1
+                fi
 
 get_clients "$@"
