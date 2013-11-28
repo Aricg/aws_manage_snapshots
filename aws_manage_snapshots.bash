@@ -80,7 +80,9 @@ do
     elif [[ $del == true ]];
 			then
         getdel
+        #if ! [[ $test == true ]]; then
         delsnap
+        #fi
 
 		elif [[ $snapshot == true ]];
 			then
@@ -113,10 +115,14 @@ if [[ $test == true ]]; then log "this is only a test"; fi
 
   descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
   runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
+
   log ""$(basename ${client%.*})"'s Running Volumes in "$zone":"
   log $runningvolumes 
-  
-  echo "$descsnap" > tmp_info
+  log $trimmedsnapshots
+ 
+#TODO remove temporary file 
+#  echo "$descsnap" > tmp_info
+
     getdel=()
     while read -d $' '; do
       getdel+=("$REPLY")
@@ -125,11 +131,23 @@ if [[ $test == true ]]; then log "this is only a test"; fi
 }
 
 getnumkeep() {
-#TODO make sure $numbertokeep is not empty
+
+  allsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
+  trimmedsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
+  log "Volume:"
+  log $vol
+  log "Associated Snapshots:"
+  log $allsnapshots 
+
+        if ! [[ -z $trimmedsnapshots ]]; then
+          log "Snapshots to be deleted:"
+          log $trimmedsnapshots
+        fi 
+
 	getnumkeep=()
-	while read -d $'\n'; do
+	while read -d $' '; do
 		getnumkeep+=("$REPLY")
-	done < <(cat tmp_info  | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
+  done < <(echo $trimmedsnapshots)
 
 }
 
@@ -137,14 +155,15 @@ getnumkeep() {
 delsnap () {
 	for vol in "${getdel[@]}";
 	do
-
+#Looks like i need new logic as this deletes backup volumes of unattached instances. wihtout knowing it
 		getnumkeep "$@"
-		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
+#		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
 
       for tbd in "${getnumkeep[@]}";
         do
           if [[ $test == true ]]; then
-            echo "Example delete of $vol's snapshot: ec2-delete-snapshot $key "$tbd" "
+#            echo "Example delete of $vol's snapshot: ec2-delete-snapshot $key "$tbd" "
+echo "test switch enabled not calling dodelete on snap $tbd"
           else
 
             #Delete Volume
@@ -152,7 +171,7 @@ delsnap () {
             
             #Check errors and log
             status=$?
-            log $(cat "$dodelete")
+            log $(echo "$dodelete")
             logandexit "$status"
 
           fi
