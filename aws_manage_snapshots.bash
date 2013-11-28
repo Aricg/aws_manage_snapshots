@@ -48,7 +48,6 @@ fi
 get_clients() {
 #certs must be in $KEYDIR and in the format projectname.key and projectname.pub
 
-#TODO add option to choose clients specific clients as a flag. (for client in $OPTARG)
 if ! [[ -z $client ]]; then 
   
   for client in ""$KEYDIR""$client"";
@@ -137,7 +136,6 @@ else
   log "running ec2-describe-snapshot to delete "$(basename ${client%.*})"'s snapshots if there are more than $numbertokeep associated with any instance for $zone avaliablility zone"
 fi
 
-#TODO 
 #This is the main logic for parsing descinstances with regards to  determinig which snapshots are associated with which instance.
 #this one liner is divided to provide Both List and Delete functionality
 descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
@@ -195,7 +193,6 @@ delsnap () {
       for tbd in "${getnumkeep[@]}";
         do
 
-          #TODO I dont think the script can reach this test anymore leave it as a safety 
           if [[ $test == true ]]; then
           echo "test switch enabled not calling dodelete on snap $tbd"
 
@@ -268,7 +265,6 @@ inventory () {
 
 
 usage() {
-  #TODO Make a list attached volumes and attached snapshots
 cat << EOF
 
 "$0": ensures a snapshot is made for all attached volumes in all zones for all clients
@@ -310,8 +306,6 @@ whoareyou
 
 if [[ -z "$@" ]]; then usage
 fi
-
-#TODO optionally only snap the volumes of a single client
 
 while getopts "tl:k:isd:hvc:a:" OPTION
 do
