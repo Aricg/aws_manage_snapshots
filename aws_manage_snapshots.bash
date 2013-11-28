@@ -103,6 +103,7 @@ key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
    fi
 
 done
+
 }
 
 getvol() {
@@ -185,29 +186,25 @@ fi
 }
 
 delsnap () {
-	for vol in "${getsnap[@]}";
-	do
-
+for vol in "${getsnap[@]}";
+  do
 #		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
 		getnumkeep "$@"
 
       for tbd in "${getnumkeep[@]}";
         do
-
           if [[ $test == true ]]; then
-          echo "test switch enabled not calling dodelete on snap $tbd"
+            echo "test switch enabled not calling dodelete on snap $tbd"
 
           else
-            #Delete Volume
+           #Delete Volume
            dodelete=$(ec2-delete-snapshot $key $tbd)
-            
-            #Check errors and log
-            status=$?
-            log $(echo "$dodelete")
-            logandexit "$status"
-
+           #Check errors and log
+           status=$?
+           log $(echo "$dodelete")
+           logandexit "$status"
           fi
-      done
+       done
 	done
 }
 
@@ -248,7 +245,6 @@ makesnap () {
 inventory () {
   for description in volumes snapshots instances
     do
-
         echo "Logging "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
 
         #Log an inventory of all infomation parsed by this script
