@@ -6,10 +6,6 @@
 # rename the public and private certificate foo.pub and foo.key respectivly
 # you may provide this script with any number of certificate pairs
 #
-# What it does
-# This script takes a SNAPSHOT of all ATTACHED volumes across all AVALIABILITY zones.
-# Bascially it covers your ass.
-#
 # Aric Gardner 2013
 #
 # Copyleft Information
@@ -44,34 +40,51 @@ fi
 
 if [ ! -f "$LOGDIR""$LOG" ]; then
 	touch "$LOGDIR""$LOG"
-  log "Creating Log File"
 fi
+
 	echo "$(date "+%Y/%m/%d %H:%M:%S"): $@ " 2>&1 | tee -a "$LOGDIR""$LOG"
 }
 
 get_clients() {
 #certs must be in $KEYDIR and in the format projectname.key and projectname.pub
-for client in "${certs[@]}";
-do
-	describe_instances "$@"
-done
 
+#TODO add option to choose clients specific clients as a flag. (for client in $OPTARG)
+if ! [[ -z $client ]]; then 
+  
+  for client in ""$KEYDIR""$client"";
+  do
+  	describe_instances "$client" 
+  done
+
+else
+
+  for client in "${certs[@]}";
+  do
+  	describe_instances "$@"
+  done
+
+fi
 }
 
 #Get a list of avaliable avaliablility zones to ensure we snapshot ATTACHED volmes in all zones
 describe_instances() {
 
-if [[ ! -s tmp_zones ]]; then
-  #TODO catch errors
-  #TODO choose DC to backup as opt arg
-  #TODO regenerate tmp_zones if it is more than $x days old, Amazon has been known to add new data centers ;)
-	ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
+#If $azones is not set as an OPTARG grab it from tmp_zones (which we create if needed)
+if [[ -z $azones ]]; then
+  
+    if [[ ! -s tmp_zones ]]; then
+      ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
+    fi
+
+  azones=$(cat tmp_zones)
+
 fi
 
-#we must check each zone for each client.
-for zone in $(cat tmp_zones)
+
+#Zones are the top level. this is the main logic for choosing which functions run
+for zone in $azones
 do
-	key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
+key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
 
     if [[ $inventory == true ]];
 			then
@@ -79,13 +92,13 @@ do
 
     elif [[ $del == true ]];
 			then
-        getdel
-        #if ! [[ $test == true ]]; then
+        #Logic to show volumes and their snapshots as well as delete old snapshots are in these functions
+        getsnap
         delsnap
-        #fi
 
 		elif [[ $snapshot == true ]];
 			then
+        #Logic to show attached volumes and take snapshots are in these functions
 				getvol
 				makesnap
 		fi
@@ -93,81 +106,102 @@ done
 }
 
 getvol() {
-if [[ $test == true ]]; then log "this is only a test"; fi
 
-  log "running ec2-describe-instances to find "$(basename ${client%.*})"'s volumes in $zone avaliablity zone (this can take a while)"
 
-  #TODO catch errors, possibly log tmp.info it's interesting to audit
-  ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' > tmp_info
+if [[ $test == true ]]; then 
+  log "running ec2-describe-instances to list "$(basename ${client%.*})"'s volumes and attachements in $zone avaliablity zone "
+
+else
+  log "running ec2-describe-instances to preapare "$(basename ${client%.*})"'s volumes in $zone avaliablity for immediate snapshot"
+
+fi
+
+#TODO pipefail would be usefull
+#This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
+descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
 
     getvol=()
     while read -d $'\n'; do
       getvol+=("$REPLY")
-    done < <(cat tmp_info)
+    done < <(echo "$descinstances")
 }
 
-getdel() {
-if [[ $test == true ]]; then log "this is only a test"; fi
 
-  log "running ec2-describe-snapshot to find "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
+getsnap() {
 
-  #TODO catch errors here, log tmp_info, and possibly rewrite it, as its infomation we need to delete snapshots and should be named more clearly
+if [[ $test == true ]]; then 
+  log "running ec2-describe-snapshot to list "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
+  
+else
 
-  descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
-  runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
+  log "running ec2-describe-snapshot to delete "$(basename ${client%.*})"'s snapshots if there are more than $numbertokeep associated with any instance for $zone avaliablility zone"
+fi
 
-  log ""$(basename ${client%.*})"'s Running Volumes in "$zone":"
-  log $runningvolumes 
-  log $trimmedsnapshots
+#TODO 
+#This is the main logic for parsing descinstances with regards to  determinig which snapshots are associated with which instance.
+#this one liner is divided to provide Both List and Delete functionality
+descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
+runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
+
+#This lists currently attached volumes. the delte snapshots fucntion runs against even unattached volumes
+log ""$(basename ${client%.*})"'s Running Volumes in "$zone": "$runningvolumes"  "$trimmedsnapshots""
  
-#TODO remove temporary file 
-#  echo "$descsnap" > tmp_info
-
-    getdel=()
+    getsnap=()
     while read -d $' '; do
-      getdel+=("$REPLY")
+      getsnap+=("$REPLY")
     done < <(echo $runningvolumes )
 
 }
 
 getnumkeep() {
 
-  allsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
-  trimmedsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
-  log "Volume:"
-  log $vol
-  log "Associated Snapshots:"
-  log $allsnapshots 
+#this is the main logic to sort out which snapshots are associated with which attached volumes 
+allsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
 
-        if ! [[ -z $trimmedsnapshots ]]; then
-          log "Snapshots to be deleted:"
-          log $trimmedsnapshots
-        fi 
+if [[ $test == true ]]; then
+  #actually print which snapshots belong to which volumes
+  log "Volume: $vol Snapshots: $(echo $allsnapshots | xargs)"
+
+else
+  
+  if ! [[ -z $numbertokeep ]]; then 
+    #This is the main logi to sort out how many snapshots to keep for each volume that has snapshots
+    trimmedsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
+  fi
+  
+
+  #Don't log empty strings or populate empty arrays
+  if ! [[ -z $trimmedsnapshots ]]; then
+      log "Snapshots to be deleted: "$trimmedsnapshots""
 
 	getnumkeep=()
 	while read -d $' '; do
 		getnumkeep+=("$REPLY")
   done < <(echo $trimmedsnapshots)
 
+  fi
+
+fi
+
 }
 
-
 delsnap () {
-	for vol in "${getdel[@]}";
+	for vol in "${getsnap[@]}";
 	do
-#Looks like i need new logic as this deletes backup volumes of unattached instances. wihtout knowing it
-		getnumkeep "$@"
+
 #		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
+		getnumkeep "$@"
 
       for tbd in "${getnumkeep[@]}";
         do
-          if [[ $test == true ]]; then
-#            echo "Example delete of $vol's snapshot: ec2-delete-snapshot $key "$tbd" "
-echo "test switch enabled not calling dodelete on snap $tbd"
-          else
 
+          #TODO I dont think the script can reach this test anymore leave it as a safety 
+          if [[ $test == true ]]; then
+          echo "test switch enabled not calling dodelete on snap $tbd"
+
+          else
             #Delete Volume
-            dodelete=$(ec2-delete-snapshot $key $tbd)
+           dodelete=$(ec2-delete-snapshot $key $tbd)
             
             #Check errors and log
             status=$?
@@ -189,8 +223,7 @@ makesnap () {
 			volume=$(echo $vol | awk '{print $3}')
 
 		if [[ $test == true ]]; then
-			echo "TEST COMMAND OUTPUT : ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
-
+      echo "In $zone Client "$(basename ${client%.*})" has "$volume" attached as "$device" on "$instance""
 		else
 
       #Take Snapshot
@@ -235,23 +268,30 @@ inventory () {
 
 
 usage() {
+  #TODO Make a list attached volumes and attached snapshots
 cat << EOF
 
 "$0": ensures a snapshot is made for all attached volumes in all zones for all clients
 version: $version
 usage: $0 [OPTIONS]
-        -h	Show this message
-	-t	Run in test mode
-	-s	Run in snapshot mode
-	-i	Run in inventory mode
-	-d  Delete all but X snapshots for each volume
-	-l	Choose log dir
-	-k	Choose key dir
+ -h  Show this message
+ -t  List Volumes and which Machine they are attached to, don't take any action 
+ -s  Take a snapshot of all volumes listed by above action
+ -v  List each clients attached volumes and their associated snapshots  
+ -d  Delete all but X most recent snapshots for each volume listed by above action
+ -i  Write an inventroy for each client to the log dir	
+ -l  Choose log dir
+ -k  Choose key dir
+ -c  Specify which detected accounts you with to run the script against. 
+ -a  Specify which avaliablility zones you wish to run the script against.
 
 Example Inventory mode :$0  -i -l $LOGDIR -k $KEYDIR
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
 Example Delete mode saving the 15 most recent snapshots  :$0  -d 15
+Example List attached volumes for client foo in zone us-east-1:$0 -v -c foo -a us-east-1 
 Note: keys must be in the format projectname.key and projectname.pub
+
+zones: eu-west-1 sa-east-1 us-east-1 ap-northeast-1 us-west-2 us-west-1 ap-southeast-1 ap-southeast-2
 
 detected accounts:
 EOF
@@ -273,10 +313,12 @@ fi
 
 #TODO optionally only snap the volumes of a single client
 
-while getopts "tl:k:isd:h" OPTION
+while getopts "tl:k:isd:hvc:a:" OPTION
 do
         case $OPTION in
-                t ) test=true ;;
+                t ) test=true
+                snapshot=true
+                ;;
                 l ) LOGDIR="$OPTARG" ;;
                 k ) KEYDIR="$OPTARG" ;;
                 i ) inventory=true ;;
@@ -284,6 +326,11 @@ do
                 d ) numbertokeep="$OPTARG"
                 del=true 
                 ;;
+                v) test=true
+                del=true
+                ;;
+                c ) client="$OPTARG";;
+                a ) azones="$OPTARG";;
                 h ) usage; exit;;
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
         esac
