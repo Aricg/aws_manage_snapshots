@@ -8,10 +8,10 @@ usage: ./aws_manage_snapshots.bash [OPTIONS]
  -s  Take a snapshot of all volumes listed by above action
  -v  List each clients attached volumes and their associated snapshots
  -d  Delete all but X most recent snapshots for each volume listed by above action
- -i  Write an inventroy for each client to the log dir
+ -i  Write an inventory for each client to the log dir
  -l  Choose log dir
  -k  Choose key dir
- -c  Specify which detected accounts you with to run the script against.
+ -c  Specify which detected accounts you wish to run the script against.
  -a  Specify which avaliablility zones you wish to run the script against.
 
 Example Inventory mode :./aws_manage_snapshots.bash  -i -l /var/log/aws/ -k /etc/ssl/private/aws/
@@ -31,3 +31,20 @@ buzz
 Requirements
 ============
 ec2-api-tools ec2-ami-tools -- avaliable in ubntu 12.04 multiverse repo
+
+```
+ec2-api-tools
+ |Depends: default-jre-headless
+  Depends: <java6-runtime-headless>
+    openjdk-6-jre-headless
+    default-jre-headless
+    openjdk-7-jre-headless
+aric at ip-10-154-190-141 in /var/log/aws
+$ apt-cache depends ec2-ami-tools
+ec2-ami-tools
+  Depends: ruby
+    ruby1.8
+  Depends: <libopenssl-ruby>
+    libruby
+  Depends: curl
+```

@@ -271,11 +271,11 @@ cat << EOF
 version: $version
 usage: $0 [OPTIONS]
  -h  Show this message
- -t  List Volumes and which Machine they are attached to, don't take any action 
+ -t  List Volumes and which Machines they are attached to, don't take any action 
  -s  Take a snapshot of all volumes listed by above action
  -v  List each clients attached volumes and their associated snapshots  
  -d  Delete all but X most recent snapshots for each volume listed by above action
- -i  Write an inventroy for each client to the log dir	
+ -i  Write an inventory for each client to the log dir	
  -l  Choose log dir
  -k  Choose key dir
  -c  Specify which detected accounts you with to run the script against. 
@@ -329,9 +329,6 @@ do
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
         esac
 done
-#                if [[ -z "$numbertokeep" ]] && [[ $del = true ]]; then 
-#                  echo "You must provide a number of snapshots to keep"; exit 1 
-#                fi  
 
                 if [[ $snapshot == "true" ]] && [[ $del == "true" ]]; then
                   echo  "incompatable options"; exit 1
