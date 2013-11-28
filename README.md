@@ -39,7 +39,6 @@ ec2-api-tools
     openjdk-6-jre-headless
     default-jre-headless
     openjdk-7-jre-headless
-aric at ip-10-154-190-141 in /var/log/aws
 $ apt-cache depends ec2-ami-tools
 ec2-ami-tools
   Depends: ruby
