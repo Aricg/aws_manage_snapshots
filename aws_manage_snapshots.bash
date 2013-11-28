@@ -95,12 +95,13 @@ key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
         getsnap
         delsnap
 
-		elif [[ $snapshot == true ]];
-			then
-        #Logic to show attached volumes and take snapshots are in these functions
-				getvol
-				makesnap
-		fi
+   elif [[ $snapshot == true ]];
+     then
+       #Logic to show attached volumes and take snapshots are in these functions
+       getvol
+       makesnap
+   fi
+
 done
 }
 
