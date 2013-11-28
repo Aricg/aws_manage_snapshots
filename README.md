@@ -1,6 +1,6 @@
 aws_manage_snapshots
 ====================
-
+```
 version: 1.3
 usage: ./aws_manage_snapshots.bash [OPTIONS]
  -h  Show this message
@@ -26,6 +26,7 @@ detected accounts:
 foo 
 bar
 buzz
+```
 
 Requirements
 ============
