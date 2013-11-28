@@ -1,31 +1,31 @@
 aws_manage_snapshots
 ====================
 
-ec2-create and delete snapshots for any number of 509.x key-paris with the aws cli api, Inventory with ec2-describe-volumes/snapshots/instances
+version: 1.3
+usage: ./aws_manage_snapshots.bash [OPTIONS]
+ -h  Show this message
+ -t  List Volumes and which Machine they are attached to, don't take any action
+ -s  Take a snapshot of all volumes listed by above action
+ -v  List each clients attached volumes and their associated snapshots
+ -d  Delete all but X most recent snapshots for each volume listed by above action
+ -i  Write an inventroy for each client to the log dir
+ -l  Choose log dir
+ -k  Choose key dir
+ -c  Specify which detected accounts you with to run the script against.
+ -a  Specify which avaliablility zones you wish to run the script against.
 
+Example Inventory mode :./aws_manage_snapshots.bash  -i -l /var/log/aws/ -k /etc/ssl/private/aws/
+Example Snapshot mode  :./aws_manage_snapshots.bash  -s -l /var/log/aws/ -k /etc/ssl/private/aws/
+Example Delete mode saving the 15 most recent snapshots  :./aws_manage_snapshots.bash  -d 15
+Example List attached volumes for client foo in zone us-east-1:./aws_manage_snapshots.bash -v -c foo -a us-east-1
+Note: keys must be in the format projectname.key and projectname.pub
 
+zones: eu-west-1 sa-east-1 us-east-1 ap-northeast-1 us-west-2 us-west-1 ap-southeast-1 ap-southeast-2
 
-    "./aws_manage_snapshots": ensures a snapshot is made for all attached volumes in all zones for all clients
-    version: 1.1
-    usage: ./aws_manage_snapshots [OPTIONS]
-    -h  Show this message
-	  -t	Run in test mode
-	  -s	Run in snapshot mode
-	  -i	Run in inventory mode
-	  -d #  Run in delete old snapshots mode ( # = number of snapshots to keep) 
-	  -l	Choose log dir
-	  -k	Choose key dir
-
-    Example Inventory mode :./aws_manage_snapshots  -i -l /var/log/aws/ -k /etc/ssl/private/aws/
-    Example Snapshot mode  :./aws_manage_snapshots  -s -l /var/log/aws/ -k /etc/ssl/private/aws
-    Example Delete  mode   :./aws_manage_snapshots  -d 15
-    Note: keys must be in the format projectname.key and projectname.pub
-
-    detected accounts:
-    foo
-    bar
-    baz
-
+detected accounts:
+foo 
+bar
+buzz
 
 Requirements
 ============
