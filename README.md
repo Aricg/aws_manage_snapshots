@@ -30,7 +30,7 @@ buzz
 
 Requirements
 ============
-ec2-api-tools ec2-ami-tools -- avaliable in ubntu 12.04 multiverse repo
+ec2-api-tools  -- avaliable in ubntu 12.04 multiverse repo
 
 ```
 ec2-api-tools
@@ -39,15 +39,21 @@ ec2-api-tools
     openjdk-6-jre-headless
     default-jre-headless
     openjdk-7-jre-headless
-$ apt-cache depends ec2-ami-tools
-ec2-ami-tools
-  Depends: ruby
-    ruby1.8
-  Depends: <libopenssl-ruby>
-    libruby
-  Depends: curl
+
 ```
 
 INSTALLING IN DEBIAN
 ====================
-apt-get install ruby libopenssl-ruby curl default-jre-headless
+apt-get install ruby libopenssl-ruby curl default-jre-headless unzip
+export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+$JAVA_HOME/bin/java -version
+
+wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip; wget 
+unzip ec2-api-tools.zip
+mkdir /opt/ec2api/ && mv ec2-api-tools-1.6.12.0/bin/ /opt/ec2api/ && mv ec2-api-tools-1.6.12.0/lib/ /opt/ec2api/
+export EC2_HOME=/opt/ec2api/
+export PATH=$PATH:$EC2_HOME/bin
+cd /opt/
+git clone 
+
+
