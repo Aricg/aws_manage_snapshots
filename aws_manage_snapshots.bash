@@ -162,15 +162,17 @@ if [[ $test == true ]]; then
 
 else
   
+unset trimmedsnapshots
   if ! [[ -z $numbertokeep ]]; then 
     #This is the main logi to sort out how many snapshots to keep for each volume that has snapshots
     trimmedsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
   fi
-  
+ 
 
   #Don't log empty strings or populate empty arrays
   if ! [[ -z $trimmedsnapshots ]]; then
       log "Snapshots to be deleted: "$trimmedsnapshots""
+  fi
 
 	getnumkeep=()
 	while read -d $'\n'; do
@@ -179,15 +181,15 @@ else
 
   fi
 
-fi
+#fi
 
 }
 
 delsnap () {
 for vol in "${getsnap[@]}";
   do
-		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
-		getnumkeep $@
+      log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
+      getnumkeep $@
 
       for tbd in "${getnumkeep[@]}";
         do
@@ -196,13 +198,14 @@ for vol in "${getsnap[@]}";
 
           else
            #Delete Volume
-           log "running ec2-delete-snapshot $tbd"
-           dodelete=$(ec2-delete-snapshot $key $tbd)
-           #Check errors and log
-           status=$?
-           log $(echo "$dodelete")
-           logandexit "$status"
-            tbd=""
+                if ! [[ -z $tbd ]]; then
+                   log "running ec2-delete-snapshot $tbd"
+                   dodelete=$(ec2-delete-snapshot $key $tbd)
+                   #Check errors and log
+                   status=$?
+                   log $(echo "$dodelete")
+                   logandexit "$status"
+                fi
           fi
        done
 	done
