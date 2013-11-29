@@ -58,9 +58,16 @@ export PATH=$PATH:$EC2_HOME/bin
 cd /opt/
 git clone 
 mkdir /etc/ssl/private/aws/
-mv keys into key dir
+#mv your key pairs into the key dir (default /etc/ssl/private/aws/)
 eno-ec2:/opt/aws_manage_snapshots# ./aws_manage_snapshots.bash -t
 2013/11/29 16:04:00: running ec2-describe-instances to list enovance's volumes and attachements in eu-west-1 avaliablity zone
+...
+[/snip]
+
+#Dont forget, add this to /etc/profile or .bashrc 
+export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+export EC2_HOME=/opt/ec2api/
+export PATH=$PATH:$EC2_HOME/bin
 
 ```
 
