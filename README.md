@@ -47,3 +47,7 @@ ec2-ami-tools
     libruby
   Depends: curl
 ```
+
+INSTALLING IN DEBIAN
+====================
+apt-get install ruby libopenssl-ruby curl default-jre-headless
