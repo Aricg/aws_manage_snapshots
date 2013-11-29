@@ -82,7 +82,7 @@ mkdir /etc/ssl/private/aws/
 [/snip]
 ```
 
-Dont forget to update to /etc/profile or .bashrc
+Dont forget to update /etc/profile or .bashrc
 ````
 export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
 export EC2_HOME=/opt/ec2api/
