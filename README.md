@@ -66,6 +66,7 @@ mkdir /opt/ec2api/ && mv ec2-api-tools-1.6.12.0/bin/ /opt/ec2api/ && mv ec2-api-
 
 export EC2_HOME=/opt/ec2api/
 export PATH=$PATH:$EC2_HOME/bin
+export EC2_URL=http://ec2.amazonaws.com
 ```
 
 Get this script
@@ -87,6 +88,7 @@ Dont forget to update /etc/profile or .bashrc
 export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
 export EC2_HOME=/opt/ec2api/
 export PATH=$PATH:$EC2_HOME/bin
+export EC2_URL=http://ec2.amazonaws.com
 ```
 
 
