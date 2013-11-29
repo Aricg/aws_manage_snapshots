@@ -162,7 +162,6 @@ if [[ $test == true ]]; then
 
 else
   
-unset trimmedsnapshots
   if ! [[ -z $numbertokeep ]]; then 
     #This is the main logi to sort out how many snapshots to keep for each volume that has snapshots
     trimmedsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
@@ -200,7 +199,7 @@ for vol in "${getsnap[@]}";
            #Delete Volume
                 if ! [[ -z $tbd ]]; then
                    log "running ec2-delete-snapshot $tbd"
-                   dodelete=$(ec2-delete-snapshot $key $tbd)
+    #               dodelete=$(ec2-delete-snapshot $key $tbd)
                    #Check errors and log
                    status=$?
                    log $(echo "$dodelete")
