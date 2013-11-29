@@ -44,16 +44,50 @@ ec2-api-tools
 
 INSTALLING IN DEBIAN
 ====================
-apt-get install ruby libopenssl-ruby curl default-jre-headless unzip
-export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
-$JAVA_HOME/bin/java -version
 
-wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip; wget 
-unzip ec2-api-tools.zip
+
+Get *shudder* java
+```
+apt-get install default-jre-headless unzip git
+export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+
+:~# $JAVA_HOME/bin/java -version
+java version "1.6.0_27"
+OpenJDK Runtime Environment (IcedTea6 1.12.6) (6b27-1.12.6-1~deb7u1)
+OpenJDK 64-Bit Server VM (build 20.0-b12, mixed mode)
+
+```
+
+Get the ec2-api-tools
+
+```
+wget http://s3.amazonaws.com/ec2-downloads/ec2-api-tools.zip && unzip ec2-api-tools.zip
 mkdir /opt/ec2api/ && mv ec2-api-tools-1.6.12.0/bin/ /opt/ec2api/ && mv ec2-api-tools-1.6.12.0/lib/ /opt/ec2api/
+
 export EC2_HOME=/opt/ec2api/
 export PATH=$PATH:$EC2_HOME/bin
+```
+
+Get this script
+```
 cd /opt/
-git clone 
+git clone clone https://github.com/enovance/aws_manage_snapshots.git 
+mkdir /etc/ssl/private/aws/
+
+#mv your key pairs into the key dir (default /etc/ssl/private/aws/)
+
+:/opt/aws_manage_snapshots# ./aws_manage_snapshots.bash -t
+2013/11/29 16:04:00: running ec2-describe-instances to list enovance's volumes and attachements in eu-west-1 avaliablity zone
+...
+[/snip]
+```
+
+Dont forget to update /etc/profile or .bashrc
+````
+export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+export EC2_HOME=/opt/ec2api/
+export PATH=$PATH:$EC2_HOME/bin
+```
+
 
 
