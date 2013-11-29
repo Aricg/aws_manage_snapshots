@@ -143,8 +143,6 @@ fi
 descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
 runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
 
-#This lists currently attached volumes. the delte snapshots fucntion runs against even unattached volumes
-log ""$(basename ${client%.*})"'s Running Volumes in "$zone": "$runningvolumes"  "$trimmedsnapshots""
  
     getsnap=()
     while read -d $' '; do
@@ -175,9 +173,9 @@ else
       log "Snapshots to be deleted: "$trimmedsnapshots""
 
 	getnumkeep=()
-	while read -d $' '; do
+	while read -d $'\n'; do
 		getnumkeep+=("$REPLY")
-  done < <(echo $trimmedsnapshots)
+  done < <(echo "$trimmedsnapshots")
 
   fi
 
@@ -188,8 +186,8 @@ fi
 delsnap () {
 for vol in "${getsnap[@]}";
   do
-#		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
-		getnumkeep "$@"
+		log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
+		getnumkeep $@
 
       for tbd in "${getnumkeep[@]}";
         do
@@ -198,11 +196,13 @@ for vol in "${getsnap[@]}";
 
           else
            #Delete Volume
+           log "running ec2-delete-snapshot $tbd"
            dodelete=$(ec2-delete-snapshot $key $tbd)
            #Check errors and log
            status=$?
            log $(echo "$dodelete")
            logandexit "$status"
+            tbd=""
           fi
        done
 	done
