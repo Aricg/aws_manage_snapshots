@@ -19,6 +19,12 @@ LOGDIR="/var/log/aws/"
 KEYDIR="/etc/ssl/private/aws/"
 certs=("$KEYDIR"*.key)
 
+#put your exports here, so that crons work and stuff
+if [ -f exports ]; then
+source exports
+fi
+
+
 whoareyou () {
 if [[ $(whoami) != "root" ]]
 then
@@ -222,6 +228,7 @@ makesnap () {
 		if [[ $test == true ]]; then
       echo "In $zone Client "$(basename ${client%.*})" has "$volume" attached as "$device" on "$instance""
 		else
+if ! [[ -z $volume ]]; then
 
       #Take Snapshot
       dosnap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" 2>&1)"
@@ -239,6 +246,7 @@ makesnap () {
       status="$?"
       log $(echo "$dotag")
       logandexit "$status"
+fi
 
       fi
 	done
@@ -275,7 +283,7 @@ usage: $0 [OPTIONS]
  -v  List each clients attached volumes and their associated snapshots  
  -d  Delete all but X most recent snapshots for each volume listed by above action
  -i  Write an inventory for each client to the log dir	
- -l  Choose log dir
+ -l  Choose log name
  -k  Choose key dir
  -c  Specify which detected accounts you with to run the script against. 
  -a  Specify which avaliablility zones you wish to run the script against.
@@ -312,7 +320,7 @@ do
                 t ) test=true
                 snapshot=true
                 ;;
-                l ) LOGDIR="$OPTARG" ;;
+                l ) LOG="$OPTARG" ;;
                 k ) KEYDIR="$OPTARG" ;;
                 i ) inventory=true ;;
                 s ) snapshot=true ;;
