@@ -144,7 +144,7 @@ else
   log "running ec2-describe-snapshot to delete "$(basename ${client%.*})"'s snapshots if there are more than $numbertokeep associated with any instance for $zone avaliablility zone"
 fi
 
-#This is the main logic for parsing descinstances with regards to  determinig which snapshots are associated with which instance.
+#This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
 #this one liner is divided to provide Both List and Delete functionality
 descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
 runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
@@ -169,7 +169,7 @@ if [[ $test == true ]]; then
 else
   
   if ! [[ -z $numbertokeep ]]; then 
-    #This is the main logi to sort out how many snapshots to keep for each volume that has snapshots
+    #This is the main logic to sort out how many snapshots to keep for each volume that has snapshots
     trimmedsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
   fi
  
@@ -205,7 +205,7 @@ for vol in "${getsnap[@]}";
            #Delete Volume
                 if ! [[ -z $tbd ]]; then
                    log "running ec2-delete-snapshot $tbd"
-    #               dodelete=$(ec2-delete-snapshot $key $tbd)
+                   dodelete=$(ec2-delete-snapshot $key $tbd)
                    #Check errors and log
                    status=$?
                    log $(echo "$dodelete")
