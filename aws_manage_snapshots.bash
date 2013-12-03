@@ -35,7 +35,7 @@ fi
 
 logandexit () {
 if [ $status -ne 0 ]; then
-  log "Script exited "$status""; exit "$status"
+  log "Script exited "$status""; 
 fi
 }
 
