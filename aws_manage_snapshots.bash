@@ -35,7 +35,7 @@ fi
 
 logandexit () {
 if [ $status -ne 0 ]; then
-  log "Script exited "$status""; 
+  log "Script exited "$status""; exit 1 
 fi
 }
 
@@ -125,7 +125,7 @@ fi
 
 #TODO pipefail would be usefull
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
-descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
+descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
 
     getvol=()
     while read -d $'\n'; do
