@@ -135,6 +135,8 @@ descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG |
 
 
 getsnap() {
+unset listofclientsnapshots
+
 
 if [[ $test == true ]]; then 
   log "running ec2-describe-snapshot to list "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
@@ -146,9 +148,47 @@ fi
 
 #This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
 #this one liner is divided to provide Both List and Delete functionality
-descsnap=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
-runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
 
+listofclientsnapshotsbeforetrimm=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
+exclusionlist=$(ec2-describe-volumes $key | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq )
+
+getexclusionlist=()
+while read -d $'\n'; do
+  getexclusionlist+=("$REPLY")
+done < <(echo "$exclusionlist")
+
+getlistofclientsnapshotsbeforetrimm=()
+while read -d $'\n'; do
+  getlistofclientsnapshotsbeforetrimm+=("$REPLY")
+done < <(echo "$listofclientsnapshotsbeforetrimm")
+echo $listofclientsnapshotsbeforetrimm
+
+
+
+#for each element of the array we built of the full list we -->
+for snapvoldate in "${getlistofclientsnapshotsbeforetrimm[@]}";
+    do
+
+            #compare it to the list of snapshot_id's that need to be excluded -->
+            for excludethis in "${getexclusionlist[@]}";
+            do
+
+            #But wait, we only need the first element of our full list. -->
+            #So build a temporary variable of only the first field of our full list array
+                snaponly=$(echo $snapvoldate | awk '{print $1}')
+
+                    #If we find a match then this element of the full list must be excluded, also we are done here we leave this loop ->
+                    if [[ "$snaponly" == "$excludethis" ]]; then break
+                    fi
+            done
+                    #If we just left the loop due to the above break then we know that $snaponly will equal $excludethis, if this is the case do nothing.
+                    #If they dont match, we must have made it to the end of the exclusion list and the snapshot_id never matched the exclusion list, so we can print it.
+                    if [[ "$snaponly" != "$excludethis" ]]; then listofclientsnapshots+="$snapvoldate"$'\n'
+                    fi
+
+    done
+
+runningvolumes=$(echo "$listofclientsnapshots" | awk '{ print $2 }' | sort | uniq )
  
     getsnap=()
     while read -d $' '; do
@@ -160,7 +200,7 @@ runningvolumes=$(echo "$descsnap" | awk '{ print $2 }' | sort | uniq )
 getnumkeep() {
 
 #this is the main logic to sort out which snapshots are associated with which attached volumes 
-allsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
+allsnapshots=$(echo "$listofclientsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
 
 if [[ $test == true ]]; then
   #actually print which snapshots belong to which volumes
@@ -170,7 +210,7 @@ else
   
   if ! [[ -z $numbertokeep ]]; then 
     #This is the main logic to sort out how many snapshots to keep for each volume that has snapshots
-    trimmedsnapshots=$(echo "$descsnap" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
+    trimmedsnapshots=$(echo "$listofclientsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
   fi
  
 
@@ -196,16 +236,16 @@ for vol in "${getsnap[@]}";
       log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
       getnumkeep $@
 
-      for tbd in "${getnumkeep[@]}";
+      for snapshot in "${getnumkeep[@]}";
         do
           if [[ $test == true ]]; then
-            echo "test switch enabled not calling dodelete on snap $tbd"
+            echo "test switch enabled not calling dodelete on snap $snapshot"
 
           else
            #Delete Volume
-                if ! [[ -z $tbd ]]; then
-                   log "running ec2-delete-snapshot $tbd"
-                   dodelete=$(ec2-delete-snapshot $key $tbd)
+                if ! [[ -z $snapshot ]]; then
+                   log "running ec2-delete-snapshot $snapshot"
+                   dodelete=$(ec2-delete-snapshot $key $snapshot)
                    #Check errors and log
                    status=$?
                    log $(echo "$dodelete")
