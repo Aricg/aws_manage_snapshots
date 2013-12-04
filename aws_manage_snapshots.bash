@@ -152,11 +152,20 @@ fi
 listofclientsnapshotsbeforetrimm=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
 exclusionlist=$(ec2-describe-volumes $key | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq )
 
+#if you want to manually exclude snapshots from being deleted it looks like this.
+#exclusionlist+=$'\n'"snap-6bc1383d"$'\n'
+#exclusionlist+=$'\n'"snap-9d225bb6"$'\n'
+#exclusionlist+=$'\n'"snap-595b4472"$'\n'
+#exclusionlist+=$'\n'"snap-95f35bb8"$'\n'
+
 getexclusionlist=()
 while read -d $'\n'; do
   getexclusionlist+=("$REPLY")
 done < <(echo "$exclusionlist")
 
+if ! [[ -z $exclusionlist ]]; then
+    echo "Excluding "${#getexclusionlist[@]}" in-use volumes, if this number is high it could take a few minutes"
+fi
 getlistofclientsnapshotsbeforetrimm=()
 while read -d $'\n'; do
   getlistofclientsnapshotsbeforetrimm+=("$REPLY")
@@ -182,10 +191,12 @@ for snapvoldate in "${getlistofclientsnapshotsbeforetrimm[@]}";
             done
                     #If we just left the loop due to the above break then we know that $snaponly will equal $excludethis, if this is the case do nothing.
                     #If they dont match, we must have made it to the end of the exclusion list and the snapshot_id never matched the exclusion list, so we can print it.
+                    echo -n "."
                     if [[ "$snaponly" != "$excludethis" ]]; then listofclientsnapshots+="$snapvoldate"$'\n'
                     fi
 
     done
+    echo " "
 
 runningvolumes=$(echo "$listofclientsnapshots" | awk '{ print $2 }' | sort | uniq )
  
@@ -225,8 +236,6 @@ else
 
   fi
 
-#fi
-
 }
 
 delsnap () {
@@ -241,14 +250,14 @@ for vol in "${getsnap[@]}";
             echo "test switch enabled not calling dodelete on snap $snapshot"
 
           else
-           #Delete Volume
+                #Delete Volume
                 if ! [[ -z $snapshot ]]; then
                    log "running ec2-delete-snapshot $snapshot"
                    dodelete=$(ec2-delete-snapshot $key $snapshot)
                    #Check errors and log
                    status=$?
+                   #dont exit if their is a failure. but do log it.
                    log $(echo "$dodelete")
-                   logandexit "$status"
                 fi
           fi
        done
