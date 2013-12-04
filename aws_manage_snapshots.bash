@@ -161,7 +161,6 @@ getlistofclientsnapshotsbeforetrimm=()
 while read -d $'\n'; do
   getlistofclientsnapshotsbeforetrimm+=("$REPLY")
 done < <(echo "$listofclientsnapshotsbeforetrimm")
-echo $listofclientsnapshotsbeforetrimm
 
 
 
