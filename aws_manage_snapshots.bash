@@ -191,12 +191,13 @@ for snapvoldate in "${getlistofclientsnapshotsbeforetrimm[@]}";
             done
                     #If we just left the loop due to the above break then we know that $snaponly will equal $excludethis, if this is the case do nothing.
                     #If they dont match, we must have made it to the end of the exclusion list and the snapshot_id never matched the exclusion list, so we can print it.
-                    echo -n "."
                     if [[ "$snaponly" != "$excludethis" ]]; then listofclientsnapshots+="$snapvoldate"$'\n'
                     fi
 
+                    #spinner!!
+                    sp='\|/-'
+                    printf "\b${sp:i++%${#sp}:1}"
     done
-    echo " "
 
 runningvolumes=$(echo "$listofclientsnapshots" | awk '{ print $2 }' | sort | uniq )
  
