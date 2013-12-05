@@ -81,7 +81,7 @@ if [[ -z $azones ]]; then
       ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
     fi
 
-  azones=$(cat tmp_zones)
+  azones=$(<tmp_zones)
 
 fi
 
