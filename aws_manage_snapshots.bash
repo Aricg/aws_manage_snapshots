@@ -98,13 +98,13 @@ key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
     elif [[ $del == true ]];
 			then
         #Logic to show volumes and their snapshots as well as delete old snapshots are in these functions
-        getsnap
+        getdvol
         delsnap
 
    elif [[ $snapshot == true ]];
      then
        #Logic to show attached volumes and take snapshots are in these functions
-       getvol
+       getsvol
        makesnap
    fi
 
@@ -112,7 +112,7 @@ done
 
 }
 
-getvol() {
+getsvol() {
 
 
 if [[ $test == true ]]; then 
@@ -126,17 +126,19 @@ fi
 #TODO pipefail would be usefull
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
 descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
+#descinstances=$(cat /var/log/aws/instances-"$zone"-enovance | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
 
-    getvol=()
+    getsvol=()
     while read -d $'\n'; do
-      getvol+=("$REPLY")
+      getsvol+=("$REPLY")
     done < <(echo "$descinstances")
 }
 
 
-getsnap() {
-unset listofclientsnapshots
+getdvol() {
 
+#this variable gets built with + and therefore needs to be unset as its never steped on. 
+unset listofsnapshots
 
 if [[ $test == true ]]; then 
   log "running ec2-describe-snapshot to list "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
@@ -149,36 +151,32 @@ fi
 #This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
 #this one liner is divided to provide Both List and Delete functionality
 
-listofclientsnapshotsbeforetrimm=$(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2) 
-exclusionlist=$(ec2-describe-volumes $key | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq )
+excludeme=()
+while read -d $'\n'; do
+  excludeme+=("$REPLY")
+done < <(ec2-describe-volumes $key | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq )
+#done < <(cat /var/log/aws/volumes-"$zone"-enovance | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq )
 
 #if you want to manually exclude snapshots from being deleted it looks like this.
-#exclusionlist+=$'\n'"snap-6bc1383d"$'\n'
-#exclusionlist+=$'\n'"snap-9d225bb6"$'\n'
-#exclusionlist+=$'\n'"snap-595b4472"$'\n'
-#exclusionlist+=$'\n'"snap-95f35bb8"$'\n'
+#excludeme+=("snap-fae2aee0" "snap-727e1f68")
 
-getexclusionlist=()
-while read -d $'\n'; do
-  getexclusionlist+=("$REPLY")
-done < <(echo "$exclusionlist")
 
-if ! [[ -z $exclusionlist ]]; then
-    echo "Excluding "${#getexclusionlist[@]}" in-use volumes, if this number is high it could take a few minutes"
+if ! [[ -z $excludeme ]]; then
+echo "Excluding "${#excludeme[@]}" in-use volumes, if this number is high it could take a few minutes"
+echo ${excludeme[@]}
 fi
-getlistofclientsnapshotsbeforetrimm=()
+
+snapb4exclude=()
 while read -d $'\n'; do
-  getlistofclientsnapshotsbeforetrimm+=("$REPLY")
-done < <(echo "$listofclientsnapshotsbeforetrimm")
-
-
-
+  snapb4exclude+=("$REPLY")
+done < <(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2 ) 
+#done < <(cat /var/log/aws/snapshots-$zone-enovance | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 )
 #for each element of the array we built of the full list we -->
-for snapvoldate in "${getlistofclientsnapshotsbeforetrimm[@]}";
+for snapvoldate in "${snapb4exclude[@]}";
     do
 
             #compare it to the list of snapshot_id's that need to be excluded -->
-            for excludethis in "${getexclusionlist[@]}";
+            for excludethis in "${excludeme[@]}";
             do
 
             #But wait, we only need the first element of our full list. -->
@@ -186,12 +184,15 @@ for snapvoldate in "${getlistofclientsnapshotsbeforetrimm[@]}";
                 snaponly=$(echo $snapvoldate | awk '{print $1}')
 
                     #If we find a match then this element of the full list must be excluded, also we are done here we leave this loop ->
-                    if [[ "$snaponly" == "$excludethis" ]]; then break
+                    if [[ "$snaponly" == "$excludethis" ]]; then 
+
+                    break
                     fi
             done
                     #If we just left the loop due to the above break then we know that $snaponly will equal $excludethis, if this is the case do nothing.
                     #If they dont match, we must have made it to the end of the exclusion list and the snapshot_id never matched the exclusion list, so we can print it.
-                    if [[ "$snaponly" != "$excludethis" ]]; then listofclientsnapshots+="$snapvoldate"$'\n'
+
+                    if [[ "$snaponly" != "$excludethis" ]]; then listofsnapshots+="$snapvoldate"$'\n'
                     fi
 
                     #spinner!!
@@ -199,54 +200,27 @@ for snapvoldate in "${getlistofclientsnapshotsbeforetrimm[@]}";
                     printf "\b${sp:i++%${#sp}:1}"
     done
 
-runningvolumes=$(echo "$listofclientsnapshots" | awk '{ print $2 }' | sort | uniq )
- 
-    getsnap=()
-    while read -d $' '; do
-      getsnap+=("$REPLY")
-    done < <(echo $runningvolumes )
-
 }
 
 getnumkeep() {
 
 #this is the main logic to sort out which snapshots are associated with which attached volumes 
-allsnapshots=$(echo "$listofclientsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
-
-if [[ $test == true ]]; then
-  #actually print which snapshots belong to which volumes
-  log "Volume: $vol Snapshots: $(echo $allsnapshots | xargs)"
-
-else
-  
-  if ! [[ -z $numbertokeep ]]; then 
-    #This is the main logic to sort out how many snapshots to keep for each volume that has snapshots
-    trimmedsnapshots=$(echo "$listofclientsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | head -n -"$numbertokeep")
-  fi
- 
-
-  #Don't log empty strings or populate empty arrays
-  if ! [[ -z $trimmedsnapshots ]]; then
-      log "Snapshots to be deleted: "$trimmedsnapshots""
-  fi
+#allsnapshots=$(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
 
 	getnumkeep=()
 	while read -d $'\n'; do
 		getnumkeep+=("$REPLY")
-  done < <(echo "$trimmedsnapshots")
+  done < <(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' )
 
-  fi
+#actually print which snapshots belong to which volumes
+log "Volume: $vol Has "${#getnumkeep[@]}" snapshots "
 
 }
 
-delsnap () {
-for vol in "${getsnap[@]}";
-  do
-      log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
-      getnumkeep $@
-
-      for snapshot in "${getnumkeep[@]}";
+dothedelete () {
+      for snapshot in ${getnumkeep[@]:$numbertokeep:${#getnumkeep[@]}}
         do
+
           if [[ $test == true ]]; then
             echo "test switch enabled not calling dodelete on snap $snapshot"
 
@@ -262,13 +236,32 @@ for vol in "${getsnap[@]}";
                 fi
           fi
        done
+     }
+
+delsnap () {
+  
+  #get the uniq list of volume names in $listofsnapshots
+  getdvol=()
+  while read -d $'\n'; do
+    getdvol+=("$REPLY")
+  done < <(echo "$listofsnapshots" | awk '{ print $2 }' | sort | uniq )
+
+
+for vol in "${getdvol[@]:1}";
+  do
+      log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
+      getnumkeep $@
+  if ! [[ -z "${getnumkeep[@]:$numbertokeep:${#getnumkeep[@]}}" ]]; then
+  #log "all snapshots: $allsnapshots"
+      dothedelete $@
+  fi
 	done
 }
 
 makesnap () {
-
-	for vol in "${getvol[@]}";
+	for vol in "${getsvol[@]}";
 		do
+      echo "$vol"
 
 			instance=$(echo $vol | awk '{print $1}')
 			device=$(echo $vol | awk '{print $2}')
@@ -277,6 +270,7 @@ makesnap () {
 		if [[ $test == true ]]; then
       echo "In $zone Client "$(basename ${client%.*})" has "$volume" attached as "$device" on "$instance""
 		else
+
 if ! [[ -z $volume ]]; then
 
       #Take Snapshot
