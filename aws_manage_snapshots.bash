@@ -202,7 +202,7 @@ delsnap () {
   done < <(echo "$listofsnapshots" | awk '{ print $2 }' | sort | uniq )
 
 
-  if [[ -z "$listofsnapshots" ]];
+  if ! [[ -z "$listofsnapshots" ]];
   then
 
 log "Keeping at least "$numbertokeep" snapshots of volumes "${getdvol[@]}" for "$(basename "${client%.*}")""
