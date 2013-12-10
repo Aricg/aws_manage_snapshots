@@ -125,9 +125,9 @@ fi
 
 #TODO pipefail would be usefull
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
-descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
+#descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
 
-#descinstances=$(cat /var/log/aws/instances-"$zone"-enovance | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
+descinstances=$(cat /var/log/aws/instances-"$zone"-enovance | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
 
     getsvol=()
     while read -d $'\n'; do
@@ -170,7 +170,18 @@ getnumkeep() {
 #actually print which snapshots belong to which volumes
 
 if [[ "${#getnumkeep[@]}" -lt "$numbertokeep" ]]; then  
-      log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots ... WARNING"
+
+        if [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol) ]]; then
+
+          log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots ... WARNING";
+
+          #cat "$LOGDIR"volumes-"$zone"-"$(basename  ${client%.*})" | grep "$vol"
+
+        else
+          log "$(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | xargs ) is a snapshot of a deleted volume $vol .... OK"
+        fi
+
+
 else
       log "Volume: $vol Has "${#getnumkeep[@]}" snapshots ... OK"
 fi
