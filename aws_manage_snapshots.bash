@@ -171,7 +171,11 @@ getnumkeep() {
 
 if [[ "${#getnumkeep[@]}" -lt "$numbertokeep" ]]; then  
 
-        if [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol) ]]; then
+  if [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol | grep available ) ]]; then
+    
+          log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots but it is not attached to an instance ... OK ";
+    
+  elif [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol) ]]; then
 
           log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots ... WARNING";
 
