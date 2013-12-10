@@ -168,7 +168,12 @@ getnumkeep() {
   done < <(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' )
 
 #actually print which snapshots belong to which volumes
-log "Volume: $vol Has "${#getnumkeep[@]}" snapshots "
+
+if [[ "${#getnumkeep[@]}" -lt "$numbertokeep" ]]; then  
+      log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots ... WARNING"
+else
+      log "Volume: $vol Has "${#getnumkeep[@]}" snapshots ... OK"
+fi
 
 }
 
