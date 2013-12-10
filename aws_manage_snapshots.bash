@@ -125,8 +125,9 @@ fi
 
 #TODO pipefail would be usefull
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
-descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
-#descinstances=$(cat /var/log/aws/instances-"$zone"-enovance | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
+#descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
+
+descinstances=$(cat /var/log/aws/instances-"$zone"-enovance | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
 
     getsvol=()
     while read -d $'\n'; do
@@ -152,60 +153,14 @@ fi
 #this one liner is divided to provide Both List and Delete functionality
 
 excludeme=()
-while read -d $'\n'; do
-  excludeme+=("$REPLY")
-done < <(ec2-describe-volumes $key | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq )
-#done < <(cat /var/log/aws/volumes-"$zone"-enovance | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq )
 
-#if you want to manually exclude snapshots from being deleted it looks like this.
-#excludeme+=("snap-fae2aee0" "snap-727e1f68")
-
-
-if ! [[ -z $excludeme ]]; then
-echo "Excluding "${#excludeme[@]}" in-use volumes, if this number is high it could take a few minutes"
-echo ${excludeme[@]}
-fi
-
-snapb4exclude=()
-while read -d $'\n'; do
-  snapb4exclude+=("$REPLY")
-done < <(ec2-describe-snapshots -o self $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' |  sort -k2 ) 
-#done < <(cat /var/log/aws/snapshots-$zone-enovance | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 )
-#for each element of the array we built of the full list we -->
-for snapvoldate in "${snapb4exclude[@]}";
-    do
-
-            #compare it to the list of snapshot_id's that need to be excluded -->
-            for excludethis in "${excludeme[@]}";
-            do
-
-            #But wait, we only need the first element of our full list. -->
-            #So build a temporary variable of only the first field of our full list array
-                snaponly=$(echo $snapvoldate | awk '{print $1}')
-
-                    #If we find a match then this element of the full list must be excluded, also we are done here we leave this loop ->
-                    if [[ "$snaponly" == "$excludethis" ]]; then 
-
-                    break
-                    fi
-            done
-                    #If we just left the loop due to the above break then we know that $snaponly will equal $excludethis, if this is the case do nothing.
-                    #If they dont match, we must have made it to the end of the exclusion list and the snapshot_id never matched the exclusion list, so we can print it.
-
-                    if [[ "$snaponly" != "$excludethis" ]]; then listofsnapshots+="$snapvoldate"$'\n'
-                    fi
-
-                    #spinner!!
-                    sp='\|/-'
-                    printf "\b${sp:i++%${#sp}:1}"
-    done
+listofsnapshots=$(awk 'NR==FNR{a[$1];next} !($1 in a)' <(cat /var/log/aws/volumes-$zone-enovance | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq ) <(cat /var/log/aws/snapshots-$zone-enovance | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 ) )
 
 }
 
 getnumkeep() {
 
 #this is the main logic to sort out which snapshots are associated with which attached volumes 
-#allsnapshots=$(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }')
 
 	getnumkeep=()
 	while read -d $'\n'; do
@@ -247,12 +202,12 @@ delsnap () {
   done < <(echo "$listofsnapshots" | awk '{ print $2 }' | sort | uniq )
 
 
-for vol in "${getdvol[@]:1}";
+      log "Keeping at least "$numbertokeep" snapshots of volumes "${getdvol[@]}" for "$(basename "${client%.*}")""
+#for vol in "${getdvol[@]:1}";
+for vol in "${getdvol[@]}";
   do
-      log "Keeping "$numbertokeep" snapshots of volume $vol for "$(basename "${client%.*}")""
       getnumkeep $@
   if ! [[ -z "${getnumkeep[@]:$numbertokeep:${#getnumkeep[@]}}" ]]; then
-  #log "all snapshots: $allsnapshots"
       dothedelete $@
   fi
 	done
