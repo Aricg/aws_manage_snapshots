@@ -202,15 +202,24 @@ delsnap () {
   done < <(echo "$listofsnapshots" | awk '{ print $2 }' | sort | uniq )
 
 
-      log "Keeping at least "$numbertokeep" snapshots of volumes "${getdvol[@]}" for "$(basename "${client%.*}")""
-#for vol in "${getdvol[@]:1}";
-for vol in "${getdvol[@]}";
-  do
-      getnumkeep $@
-  if ! [[ -z "${getnumkeep[@]:$numbertokeep:${#getnumkeep[@]}}" ]]; then
-      dothedelete $@
-  fi
-	done
+  if [[ -z "$listofsnapshots" ]];
+  then
+
+log "Keeping at least "$numbertokeep" snapshots of volumes "${getdvol[@]}" for "$(basename "${client%.*}")""
+      
+      for vol in "${getdvol[@]}";
+        do
+            getnumkeep $@
+              if ! [[ -z "${getnumkeep[@]:$numbertokeep:${#getnumkeep[@]}}" ]]; then
+                dothedelete $@
+              fi
+        done
+    else 
+
+echo "No Volumes in $zone for "$(basename ${client%.*})""
+
+fi
+
 }
 
 makesnap () {
@@ -253,13 +262,14 @@ fi
 inventory () {
   for description in volumes snapshots instances
     do
-        echo "Logging "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
+        echo "Checking for "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
 
         #Log an inventory of all infomation parsed by this script
         doinventory=$(ec2-describe-"$description" --headers $key)
+        status="$?"
+
 
         #Check errors and log
-        status="$?"
           if ! [[ -z $doinventory ]]; then
           echo "$doinventory" > "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"
           fi
