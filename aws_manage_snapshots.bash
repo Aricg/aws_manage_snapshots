@@ -125,9 +125,9 @@ fi
 
 #TODO pipefail would be usefull
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
-#descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
+descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}')
 
-descinstances=$(cat /var/log/aws/instances-"$zone"-enovance | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
+#descinstances=$(cat /var/log/aws/instances-"$zone"-enovance | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
 
     getsvol=()
     while read -d $'\n'; do
@@ -154,7 +154,7 @@ fi
 
 excludeme=()
 
-listofsnapshots=$(awk 'NR==FNR{a[$1];next} !($1 in a)' <(cat /var/log/aws/volumes-$zone-enovance | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq ) <(cat /var/log/aws/snapshots-$zone-enovance | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 ) )
+listofsnapshots=$(awk 'NR==FNR{a[$1];next} !($1 in a)' <(ec2-describe-volumes $key | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq ) <(ec2-describe-snapshots $key | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 ) )
 
 }
 
