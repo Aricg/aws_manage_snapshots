@@ -133,9 +133,10 @@ descinstances=$(ec2-describe-instances $key |grep -v RESERVATION | grep -v TAG |
     while read -d $'\n'; do
       getsvol+=("$REPLY")
     done < <(echo "$descinstances")
+    
+    log ""$(basename ${client%.*})"'s has ${#getsvol[@]} Mounted Volumes in $zone"
+
 }
-
-
 getdvol() {
 
 #this variable gets built with + and therefore needs to be unset as its never steped on. 
@@ -146,7 +147,7 @@ if [[ $test == true ]]; then
   
 else
 
-  echo "running ec2-describe-snapshot to delete "$(basename ${client%.*})"'s snapshots if there are more than $numbertokeep associated with any instance for $zone avaliablility zone"
+  log "running ec2-describe-snapshot to delete "$(basename ${client%.*})"'s snapshots if there are more than $numbertokeep associated with any instance for $zone avaliablility zone"
 fi
 
 #This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
@@ -243,7 +244,6 @@ fi
 makesnap () {
 	for vol in "${getsvol[@]}";
 		do
-      echo "$vol"
 
 			instance=$(echo $vol | awk '{print $1}')
 			device=$(echo $vol | awk '{print $2}')
