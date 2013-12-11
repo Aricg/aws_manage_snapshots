@@ -1,0 +1,25 @@
+#!/bin/bash
+
+# Sanity check
+if [[ $# -ne 2 ]] || ! [[ -e $1 ]]; then
+        echo "Usage: $0 /path/to/aws/logfile.log numberofsnapshotstokeep"
+        exit
+fi
+
+for x in CRITICAL WARNING OK ; do
+
+numerrors="$(cat "$1" | grep $(tail -n1 "$1" | awk '{print $1}') | grep "$x" | wc -l )"
+
+  if [[  "$numerrors" -gt 0 ]]; then
+
+    if [[ $x = "CRITICAL" ]]; then "echo $x - $numerrors critical errors have occured, please check the logs" exit "2"
+    elif [[ $x = "WARNING" ]]; then echo "WARNING - $numerrors volumes have fewer than "$2" snapshots"; exit "1"
+    elif [[ $x = "OK" ]]; then echo "OK - $numerrors snapshots taken"; exit "0"
+    fi
+  fi
+  
+
+done
+
+
+

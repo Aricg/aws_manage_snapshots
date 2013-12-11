@@ -142,11 +142,11 @@ getdvol() {
 unset listofsnapshots
 
 if [[ $test == true ]]; then 
-  log "running ec2-describe-snapshot to list "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
+  echo "running ec2-describe-snapshot to list "$(basename ${client%.*})"'s snapshots in $zone avaliablity zone (this can take a while)"
   
 else
 
-  log "running ec2-describe-snapshot to delete "$(basename ${client%.*})"'s snapshots if there are more than $numbertokeep associated with any instance for $zone avaliablility zone"
+  echo "running ec2-describe-snapshot to delete "$(basename ${client%.*})"'s snapshots if there are more than $numbertokeep associated with any instance for $zone avaliablility zone"
 fi
 
 #This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
@@ -234,7 +234,7 @@ log "Keeping at least "$numbertokeep" snapshots of volumes "${getdvol[@]}" for "
         done
     else 
 
-echo "No Volumes in $zone for "$(basename ${client%.*})""
+log "No Volumes in $zone for "$(basename ${client%.*})""
 
 fi
 
