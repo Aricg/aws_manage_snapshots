@@ -56,9 +56,6 @@ get_clients() {
 
 if ! [[ -z $client ]]; then 
   
-
-          echo "$client"
-          echo "######"
   for client in ""$KEYDIR""$client"";
   do
   	describe_instances "$client" 
@@ -66,8 +63,6 @@ if ! [[ -z $client ]]; then
 
 else
 
-          echo "$client"
-          echo "######"
   for client in "${certs[@]}";
   do
   	describe_instances "$@"
@@ -95,60 +90,45 @@ if [[ -z $azones ]]; then
   azones=$(<tmp_zones)
 
 fi
-
-
         numvol=0
         numdel=0
         numsnap=0
+
 #Zones are the top level. this is the main logic for choosing which functions run
 for zone in $azones
 do
         
 key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
 
-    if [[ $inventory == true ]];
-			then
-        inventory
-
-    elif [[ $del == true ]];
-			then
-        #Logic to show volumes and their snapshots as well as delete old snapshots are in these functions
         inventory
         if [[ -s "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" ]]; then
-        #echo "Begin for client $(basename ${client%.*}) in $zone"
-        #echo "###################################################"
         getsvol
         getdvol
 
-    log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
+    if [[ $del == true ]];
+			then
+#        log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
         delsnap
-        fi
         
    elif [[ $snapshot == true ]];
      then
-       #Logic to show attached volumes and take snapshots are in these functions
-       inventory
-       if [[ -s "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" ]]; then
-       # echo "Begin for client $(basename ${client%.*}) in $zone"
-       # echo "###################################################"
-       getsvol
-       getdvol
-    log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
-       makesnap
+      log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
+      makesnap
    fi
-
 
 fi
 
 done
 
-echo "Client:"$(basename ${client%.*})" Zone:All Total number of volumes:"$numvol""
+log "Client:"$(basename ${client%.*})" Zone:All Total number of Mounted Volumes:"$numvol""
+log "Client:"$(basename ${client%.*})" Zone:All Total number of Snapshots:"${#getallsnap[@]}""
+log "Client:"$(basename ${client%.*})" Zone:All Size of all Snapshots:"$tot Gigs""
 
 if [[ $del = true ]]; then
-        echo "Client:"$(basename ${client%.*})" Zone:All Snapshots deleted today:"$numdel""
+        log "Client:"$(basename ${client%.*})" Zone:All Snapshots deleted today:"$numdel""
 fi
 if [[ $snapshot = true ]]; then
-        echo "Client:"$(basename ${client%.*})" Zone:All Snapshots taken today:"$numsnap"" 
+        log "Client:"$(basename ${client%.*})" Zone:All Snapshots taken today:"$numsnap"" 
 fi
 
         echo "######################################################################"
@@ -169,6 +149,22 @@ descinstances=$(cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | gr
 
     numvol=$(( $numvol + ${#getsvol[@]} ))
    fi
+  
+
+
+getallsnap=()
+while read -d $'\n'; do
+   getallsnap+=("$REPLY")
+done < <(cat "$LOGDIR"snapshots-"$zone"-"$(basename ${client%.*})" | grep SNAPSHOT | awk '{print $8'} )
+
+tot=0
+for i in ${getallsnap[@]}; do
+        let tot+=$i
+done
+
+
+
+
 }
 getdvol() {
 unset listofsnapshots
@@ -192,24 +188,29 @@ getnumkeep() {
 
 #actually print which snapshots belong to which volumes
 
-if [[ "${#getnumkeep[@]}" -lt "$numbertokeep" ]]; then  
+if [[ $verbose == true ]]; then
 
-  if [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol | grep available ) ]]; then
-    
-          log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots but it is not attached to an instance ... OK ";
-    
-  elif [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol) ]]; then
+        if [[ "${#getnumkeep[@]}" -lt "$numbertokeep" ]]; then  
 
-          log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots ... WARNING";
+          if [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol | grep available ) ]]; then
+            
+                  log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots but it is not attached to an instance ... OK ";
+            
+          elif [[ $(cat "$LOGDIR"volumes-$zone-"$(basename  ${client%.*})" | grep $vol) ]]; then
+
+                  log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots ... WARNING";
+
+                else
+                        log "$(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | xargs ) is a/or are snapshot(s) of a deleted volume $vol .... OK"
+                fi
 
         else
-                log "$(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | xargs ) is a/or are snapshot(s) of a deleted volume $vol .... OK"
+              log "Volume: $vol Has "${#getnumkeep[@]}" snapshots ... OK"
         fi
 
-
-else
-      log "Volume: $vol Has "${#getnumkeep[@]}" snapshots ... OK"
 fi
+
+
 
 }
 
@@ -320,6 +321,7 @@ inventory () {
                 inventoryage="43201"
       fi
 
+      #TODO this doesnt work yet
       if !  [[ -s $inventoryfile ]] && [[ $((currdate-lastrunage)) -gt "43200"  ]]; then
                  echo "#####ABORT#####********"             
       fi
@@ -333,19 +335,17 @@ if [[ $((currdate-lastrunage)) -gt "43200"  ]];  then
         #Log an inventory of all infomation parsed by this script
         echo "ec2-describe-"$description" --headers $key"
         doinventory=$(ec2-describe-"$description" --headers $key)
+        #Check errors and log
         status="$?"
         logandexit "$status"
         touch "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})""-lastrun"
-#
-#        #Check errors and log
+
           if ! [[ -z $doinventory ]]; then
           echo "$doinventory" > "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"
           fi
-#        
-#else
-#        echo " < 1 day since $zone $description"-"$zone"-"$(basename ${client%.*}), using inventory on disk"
 
 fi
+
       done
 }
 
@@ -360,7 +360,7 @@ usage: $0 [OPTIONS]
  -h  Show this message
  -t  List Volumes and which Machines they are attached to, don't take any action 
  -s  Take a snapshot of all volumes listed by above action
- -v  List each clients attached volumes and their associated snapshots  
+ -v  Verbose Mode
  -d  Delete all but X most recent snapshots for each volume listed by above action
  -i  Write an inventory for each client to the log dir	
  -l  Choose log name
@@ -405,9 +405,7 @@ do
                 d ) numbertokeep="$OPTARG"
                 del=true 
                 ;;
-                v) test=true
-                del=true
-                ;;
+                v) verbose=true;;
                 c ) client="$OPTARG";;
                 a ) azones="$OPTARG";;
                 h ) usage; exit;;
