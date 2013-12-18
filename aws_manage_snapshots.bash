@@ -115,11 +115,12 @@ key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
         #Logic to show volumes and their snapshots as well as delete old snapshots are in these functions
         inventory
         if [[ -s "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" ]]; then
-        echo "Begin for client $(basename ${client%.*}) in $zone"
-        echo "###################################################"
+        #echo "Begin for client $(basename ${client%.*}) in $zone"
+        #echo "###################################################"
         getsvol
-
         getdvol
+
+    log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
         delsnap
         fi
         
@@ -128,9 +129,11 @@ key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
        #Logic to show attached volumes and take snapshots are in these functions
        inventory
        if [[ -s "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" ]]; then
-        echo "Begin for client $(basename ${client%.*}) in $zone"
-        echo "###################################################"
+       # echo "Begin for client $(basename ${client%.*}) in $zone"
+       # echo "###################################################"
        getsvol
+       getdvol
+    log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
        makesnap
    fi
 
@@ -139,13 +142,13 @@ fi
 
 done
 
-        echo "number of volumes for client $(basename ${client%.*}) $numvol"
+echo "Client:"$(basename ${client%.*})" Zone:All Total number of volumes:"$numvol""
 
 if [[ $del = true ]]; then
-        echo "number of volumes deleted for client $(basename ${client%.*}) $numdel"
+        echo "Client:"$(basename ${client%.*})" Zone:All Snapshots deleted today:"$numdel""
 fi
 if [[ $snapshot = true ]]; then
-        echo "number of snapshots taken for client $(basename ${client%.*}) $numsnap" 
+        echo "Client:"$(basename ${client%.*})" Zone:All Snapshots taken today:"$numsnap"" 
 fi
 
         echo "######################################################################"
@@ -163,7 +166,6 @@ descinstances=$(cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | gr
    if [[ ${getsvol[@]} == "" ]]; then 
     unset getsvol
   else
-    log ""$(basename ${client%.*})" has ${#getsvol[@]} Mounted Volumes in $zone"
 
     numvol=$(( $numvol + ${#getsvol[@]} ))
    fi
@@ -172,6 +174,11 @@ getdvol() {
 unset listofsnapshots
 #This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
 listofsnapshots=$(awk 'NR==FNR{a[$1];next} !($1 in a)' <(cat "$LOGDIR"volumes-"$zone"-"$(basename ${client%.*})" | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq ) <(cat "$LOGDIR"snapshots-"$zone"-"$(basename ${client%.*})" | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 ) )
+  #get the uniq list of volume names in $listofsnapshots
+  getdvol=()
+  while read -d $'\n'; do
+    getdvol+=("$REPLY")
+  done < <(echo "$listofsnapshots" | awk '{ print $2 }' | sort | uniq )
 }
 
 getnumkeep() {
@@ -196,7 +203,7 @@ if [[ "${#getnumkeep[@]}" -lt "$numbertokeep" ]]; then
           log "Volume: $vol Only has "${#getnumkeep[@]}" snapshots ... WARNING";
 
         else
-                log "$(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | xargs ) is a / or are snapshot(s) of a deleted volume $vol .... OK"
+                log "$(echo "$listofsnapshots" | awk -v  volume="$vol" 'BEGIN { FS=volume;} {if (NF=="2") print $1 }' | xargs ) is a/or are snapshot(s) of a deleted volume $vol .... OK"
         fi
 
 
@@ -211,7 +218,7 @@ dothedelete () {
         do
 
           if [[ $test == true ]]; then
-            echo "test switch enabled not calling dodelete on snap $snapshot"
+            echo "test: ec2-delete-snapshot $key $snapshot"
 
           else
                 #Delete Volume
@@ -223,25 +230,20 @@ dothedelete () {
                    status=$?
                    #dont exit if their is a failure. but do log it.
                    log $(echo "$dodelete")
-                   ((numdel++))
                 fi
           fi
+                   ((numdel++))
        done
      }
 
 delsnap () {
   
-  #get the uniq list of volume names in $listofsnapshots
-  getdvol=()
-  while read -d $'\n'; do
-    getdvol+=("$REPLY")
-  done < <(echo "$listofsnapshots" | awk '{ print $2 }' | sort | uniq )
 
 
   if ! [[ -z "$listofsnapshots" ]];
   then
 
-log "Keeping at least "$numbertokeep" snapshots of "${#getdvol[@]}" volumes for "$(basename "${client%.*}")""
+log "Client:$(basename "${client%.*}") Zone:"$zone" "Mounted Volumes:"${#getsvol[@]}" Total Volumes:"${#getdvol[@]}" "Keeping:"$numbertokeep""
       
       for vol in "${getdvol[@]}";
         do
@@ -267,7 +269,7 @@ makesnap () {
 			volume=$(echo $vol | awk '{print $3}')
 
 		if [[ $test == true ]]; then
-      echo "In $zone Client "$(basename ${client%.*})" has "$volume" attached as "$device" on "$instance""
+      echo "test: ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume""
 		else
 
 if ! [[ -z $volume ]]; then
@@ -291,10 +293,10 @@ if ! [[ -z $volume ]]; then
       log $(echo "$dotag")
       logandexit "$status"
 
-      ((numsnap++))
 fi
 
       fi
+      ((numsnap++))
 	done
 }
 
@@ -395,9 +397,7 @@ fi
 while getopts "tl:k:isd:hvc:a:" OPTION
 do
         case $OPTION in
-                t ) test=true
-                snapshot=true
-                ;;
+                t ) test=true;;
                 l ) LOG="$OPTARG" ;;
                 k ) KEYDIR="$OPTARG" ;;
                 i ) inventory=true ;;
