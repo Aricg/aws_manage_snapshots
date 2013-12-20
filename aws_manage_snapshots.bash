@@ -107,7 +107,7 @@ key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
 
     if [[ $del == true ]];
 			then
-#        log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
+        log "Client:"$(basename ${client%.*})" Zone:"$zone" Mounted Volumes:${#getsvol[@]} Total Volumes:${#getdvol[@]}"
         delsnap
         
    elif [[ $snapshot == true ]];
@@ -119,7 +119,7 @@ key="--region "$zone" -C ${client%.*}.pub -K ${client%.*}.key"
 fi
 
 done
-
+#Log final numbers
 log "Client:"$(basename ${client%.*})" Zone:All Total number of Mounted Volumes:"$numvol""
 log "Client:"$(basename ${client%.*})" Zone:All Total number of Snapshots:"${#getallsnap[@]}""
 log "Client:"$(basename ${client%.*})" Zone:All Size of all Snapshots:"$tot Gigs""
@@ -131,13 +131,12 @@ if [[ $snapshot = true ]]; then
         log "Client:"$(basename ${client%.*})" Zone:All Snapshots taken today:"$numsnap"" 
 fi
 
-        echo "######################################################################"
-
 }
 
 getsvol() {
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
 descinstances=$(cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
+
     getsvol=()
     while read -d $'\n'; do
       getsvol+=("$REPLY")
@@ -217,34 +216,31 @@ fi
 dothedelete () {
       for snapshot in ${getnumkeep[@]:$numbertokeep:${#getnumkeep[@]}}
         do
+        if ! [[ -z $snapshot ]]; then
+                  if [[ $test == true ]]; then
+                    echo "test: ec2-delete-snapshot $key $snapshot"
 
-          if [[ $test == true ]]; then
-            echo "test: ec2-delete-snapshot $key $snapshot"
+                  else
+                        #Delete Volume
+                           log "running ec2-delete-snapshot $snapshot"
 
-          else
-                #Delete Volume
-                if ! [[ -z $snapshot ]]; then
-                   log "running ec2-delete-snapshot $snapshot"
+                           dodelete=$(ec2-delete-snapshot $key $snapshot)
+                           #Check errors and log
+                           status=$?
+                           #dont exit if their is a failure. but do log it.
+                           log $(echo "$dodelete")
+                  fi
+                           ((numdel++))
+        fi
+        done
 
-                   dodelete=$(ec2-delete-snapshot $key $snapshot)
-                   #Check errors and log
-                   status=$?
-                   #dont exit if their is a failure. but do log it.
-                   log $(echo "$dodelete")
-                fi
-          fi
-                   ((numdel++))
-       done
      }
 
 delsnap () {
-  
 
+if ! [[ -z "$listofsnapshots" ]]; then
 
-  if ! [[ -z "$listofsnapshots" ]];
-  then
-
-log "Client:$(basename "${client%.*}") Zone:"$zone" "Mounted Volumes:"${#getsvol[@]}" Total Volumes:"${#getdvol[@]}" "Keeping:"$numbertokeep""
+        log "Client:$(basename "${client%.*}") Zone:"$zone" "Mounted Volumes:"${#getsvol[@]}" Total Volumes:"${#getdvol[@]}" "Keeping:"$numbertokeep""
       
       for vol in "${getdvol[@]}";
         do
@@ -253,10 +249,9 @@ log "Client:$(basename "${client%.*}") Zone:"$zone" "Mounted Volumes:"${#getsvol
                 dothedelete $@
               fi
         done
-    else 
+else 
 
-log "No Volumes in $zone for "$(basename ${client%.*})""
-
+        log "No Volumes in $zone for "$(basename ${client%.*})""
 fi
 
 }
@@ -276,7 +271,6 @@ makesnap () {
 if ! [[ -z $volume ]]; then
 
       #Take Snapshot
-      #TODO enable this
       dosnap="$(ec2-create-snapshot $key --description ""$volume" of "$device" of "$instance"" "$volume" 2>&1)"
 
       #Check Errors and Log
@@ -285,7 +279,6 @@ if ! [[ -z $volume ]]; then
       logandexit "$status"
 
       #Tag Snapshot
-      #TODO This too
       tag=$(echo "$dosnap" | awk '{print $2}')
       dotag="$(ec2tag $key "$tag" --tag Name="Backup of "$volume" of "$device" of "$instance"" 2>&1)"
 
@@ -295,39 +288,42 @@ if ! [[ -z $volume ]]; then
       logandexit "$status"
 
 fi
-
       fi
+
       ((numsnap++))
 	done
 }
 
 inventory () {
   for description in volumes snapshots instances
-    do
-      
+do
+      #Set the current time as a variable.  
+
       currdate=$(date +%s)
       lastrun="$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})""-lastrun"
+      #if the file exists, check when it was last modified
       if [[ -e $lastrun ]]; then
         lastrunage=$( stat -c "%Y" "$lastrun" )
         else
+      #if the file does not exist give it an arbitrary high age. (we could create it here as well)
         lastrunage="432001"
 
       fi
-      
       inventoryfile="$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"
       if [[ -e $inventoryfile ]]; then
+        #if the inventory file exists, check when it was last modified
         inventoryage=$( stat -c "%Y" "$inventoryfile")
         else
+                #if the inventory file does not exist give it an arbitrary high age. we could call the function that creates inventroy file here.
                 inventoryage="43201"
       fi
 
-      #TODO this doesnt work yet
-      if !  [[ -s $inventoryfile ]] && [[ $((currdate-lastrunage)) -gt "43200"  ]]; then
-                 echo "#####ABORT#####********"             
-      fi
-      #if inventory file is size 0 and lastrun is less than a day then skip all output.
+      #if the inventroy file is greater than size zero and less than a day old skip creating an inventory. 
+      if  [[ -s $inventoryfile ]] && [[ $((currdate-lastrunage)) -lt "43200"  ]]; then
+              echo  "Using cached file "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"" 
+      else
 
-
+      
 if [[ $((currdate-lastrunage)) -gt "43200"  ]];  then 
 
         echo "Checking for "$(basename ${client%.*})"'s "$description" in $zone avaliablity zone to "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"  (this can take a while)"
@@ -341,12 +337,15 @@ if [[ $((currdate-lastrunage)) -gt "43200"  ]];  then
         touch "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})""-lastrun"
 
           if ! [[ -z $doinventory ]]; then
+          echo "Writing "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})""
           echo "$doinventory" > "$LOGDIR""$description"-"$zone"-"$(basename ${client%.*})"
           fi
 
 fi
 
-      done
+      fi
+
+done
 }
 
 
