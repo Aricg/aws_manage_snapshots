@@ -85,6 +85,8 @@ if [[ -z $azones ]]; then
 
     then
       ec2-describe-regions -C ${client%.*}.pub -K ${client%.*}.key | awk '{ print $2 }' > tmp_zones
+      status=${PIPESTATUS[0]}
+      logandexit $status
     fi
 
   azones=$(<tmp_zones)
@@ -136,7 +138,6 @@ fi
 getsvol() {
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
 tmpdescinstances=$(mktemp) 
-excludelist="/tmp/exclude"
 
 trap 'rm -f "$tmpdescinstances"' EXIT
 
@@ -150,6 +151,8 @@ cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | grep -v RESERVATIO
       else
         descinstances=$(cat $tmpdescinstances)
       fi
+
+rm -f $tmpdescinstances
 
     getsvol=()
     while read -d $'\n'; do
@@ -384,6 +387,7 @@ usage: $0 [OPTIONS]
  -k  Choose key dir
  -c  Specify which detected accounts you with to run the script against. 
  -a  Specify which avaliablility zones you wish to run the script against.
+ -e  Specify a file with a list of volumes to exclude from being snapshotted
 
 Example Inventory mode :$0  -i -l $LOGDIR -k $KEYDIR
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
@@ -411,7 +415,7 @@ whoareyou
 if [[ -z "$@" ]]; then usage
 fi
 
-while getopts "tl:k:isd:hvc:a:" OPTION
+while getopts "tl:k:isd:hvc:a:e:" OPTION
 do
         case $OPTION in
                 t ) test=true;;
@@ -425,6 +429,7 @@ do
                 v) verbose=true;;
                 c ) client="$OPTARG";;
                 a ) azones="$OPTARG";;
+                e ) excludelist="$OPTARG";;
                 h ) usage; exit;;
                 \? ) echo "Unknown option: -$OPTARG" >&2; exit 1;;
         esac
