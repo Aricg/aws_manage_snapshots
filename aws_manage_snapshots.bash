@@ -135,7 +135,21 @@ fi
 
 getsvol() {
 #This is the main logic for parsing ec2-describe-instances with regards to determinig which volumes are attached to which instance
-descinstances=$(cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' )
+tmpdescinstances=$(mktemp) 
+excludelist="/tmp/exclude"
+
+trap 'rm -f "$tmpdescinstances"' EXIT
+
+cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' > "$tmpdescinstances" 
+
+
+
+      if  [[ -s $excludelist ]]; then
+        #prints lines in file1 excluding any in which the thrid column matches lines from file2
+        descinstances=$(awk 'NR==FNR{a[$0];next} !($3 in a)' "$excludelist" "$tmpdescinstances")
+      else
+        descinstances=$(cat $tmpdescinstances)
+      fi
 
     getsvol=()
     while read -d $'\n'; do
@@ -169,16 +183,20 @@ getdvol() {
 unset listofsnapshots
 #This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
 listofsnapshots=$(awk 'NR==FNR{a[$1];next} !($1 in a)' <(cat "$LOGDIR"volumes-"$zone"-"$(basename ${client%.*})" | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq ) <(cat "$LOGDIR"snapshots-"$zone"-"$(basename ${client%.*})" | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 ) )
+
   #get the uniq list of volume names in $listofsnapshots
   getdvol=()
   while read -d $'\n'; do
     getdvol+=("$REPLY")
   done < <(echo "$listofsnapshots" | awk '{ print $2 }' | sort | uniq )
+
+
 }
 
 getnumkeep() {
 
 #this is the main logic to sort out which snapshots are associated with which attached volumes 
+
 
 	getnumkeep=()
 	while read -d $'\n'; do
