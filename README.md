@@ -1,31 +1,24 @@
 aws_manage_snapshots
 ====================
 ```
-version: 1.3
+
 usage: ./aws_manage_snapshots.bash [OPTIONS]
  -h  Show this message
- -t  List Volumes and which Machine they are attached to, don't take any action
- -s  Take a snapshot of all volumes listed by above action
- -v  List each clients attached volumes and their associated snapshots
+ -t  test but do not take any action if called alone, take an inventory for each client to the log dir and output some statistics.
+ -s  Take a snapshot of all attached volumes for all detected clients
+ -v  Verbose Mode, used to log a warning if attached volumes do not have at least X snapshots
  -d  Delete all but X most recent snapshots for each volume listed by above action
- -i  Write an inventory for each client to the log dir
- -l  Choose log dir
+ -l  Choose log name
  -k  Choose key dir
- -c  Specify which detected accounts you wish to run the script against.
+ -c  Specify which detected accounts you with to run the script against.
  -a  Specify which avaliablility zones you wish to run the script against.
+ -e  Specify a file with a list of volumes to exclude from being snapshotted
 
-Example Inventory mode :./aws_manage_snapshots.bash  -i -l /var/log/aws/ -k /etc/ssl/private/aws/
 Example Snapshot mode  :./aws_manage_snapshots.bash  -s -l /var/log/aws/ -k /etc/ssl/private/aws/
 Example Delete mode saving the 15 most recent snapshots  :./aws_manage_snapshots.bash  -d 15
-Example List attached volumes for client foo in zone us-east-1:./aws_manage_snapshots.bash -v -c foo -a us-east-1
+Example Test keeping 15 snapshots for client enovance verbose mode: ./aws_manage_snapshots.bash -t -d 15 -c enovance -v
 Note: keys must be in the format projectname.key and projectname.pub
 
-zones: eu-west-1 sa-east-1 us-east-1 ap-northeast-1 us-west-2 us-west-1 ap-southeast-1 ap-southeast-2
-
-detected accounts:
-foo 
-bar
-buzz
 ```
 
 Requirements
@@ -85,7 +78,7 @@ mkdir /etc/ssl/private/aws/
 
 Dont forget to update /etc/profile or .bashrc
 ````
-export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+export JAVA_HOME="/usr/lib/jvm/java-(6 or maybe 7)-openjdk-amd64/"
 export EC2_HOME=/opt/ec2api/
 export PATH=$PATH:$EC2_HOME/bin
 export EC2_URL=http://ec2.amazonaws.com
