@@ -393,7 +393,7 @@ usage: $0 [OPTIONS]
  -h  Show this message
  -t  test but do not take any action if called alone, take an inventory for each client to the log dir and output some statistics.
  -s  Take a snapshot of all attached volumes for all detected clients
- -v  Verbose Mode, used to log a warning if attached volumes do not have at least X snapshots
+ -v  Verbose Mode, now with even more output! will list a warning if attached volumes do not have at least X snapshots
  -d  Delete all but X most recent snapshots for each volume listed by above action
  -l  Choose log name
  -k  Choose key dir
