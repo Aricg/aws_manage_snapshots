@@ -378,21 +378,19 @@ cat << EOF
 version: $version
 usage: $0 [OPTIONS]
  -h  Show this message
- -t  List Volumes and which Machines they are attached to, don't take any action 
- -s  Take a snapshot of all volumes listed by above action
- -v  Verbose Mode
+ -t  test but do not take any action if called alone, take an inventory for each client to the log dir and output some statistics.
+ -s  Take a snapshot of all attached volumes for all detected clients
+ -v  Verbose Mode, used to log a warning if attached volumes do not have at least X snapshots
  -d  Delete all but X most recent snapshots for each volume listed by above action
- -i  Write an inventory for each client to the log dir	
  -l  Choose log name
  -k  Choose key dir
  -c  Specify which detected accounts you with to run the script against. 
  -a  Specify which avaliablility zones you wish to run the script against.
  -e  Specify a file with a list of volumes to exclude from being snapshotted
 
-Example Inventory mode :$0  -i -l $LOGDIR -k $KEYDIR
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
 Example Delete mode saving the 15 most recent snapshots  :$0  -d 15
-Example List attached volumes for client foo in zone us-east-1:$0 -v -c foo -a us-east-1 
+Example Test keeping 15 snapshots for client enovance verbose mode: $0 -t -d 15 -c enovance -v
 Note: keys must be in the format projectname.key and projectname.pub
 
 zones: eu-west-1 sa-east-1 us-east-1 ap-northeast-1 us-west-2 us-west-1 ap-southeast-1 ap-southeast-2
@@ -415,13 +413,12 @@ whoareyou
 if [[ -z "$@" ]]; then usage
 fi
 
-while getopts "tl:k:isd:hvc:a:e:" OPTION
+while getopts "tl:k:sd:hvc:a:e:" OPTION
 do
         case $OPTION in
                 t ) test=true;;
                 l ) LOG="$OPTARG" ;;
                 k ) KEYDIR="$OPTARG" ;;
-                i ) inventory=true ;;
                 s ) snapshot=true ;;
                 d ) numbertokeep="$OPTARG"
                 del=true 
