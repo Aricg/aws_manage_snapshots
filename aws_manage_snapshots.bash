@@ -35,7 +35,7 @@ fi
 
 logandexit () {
 if [ $status -ne 0 ]; then
-  log "CRITICAL - Script exited "$status""; exit 1 
+  log "Client:"$(basename ${client%.*})" Zone:"$zone" Status: CRITICAL - Script exited "$status""; exit 1 
 fi
 }
 
@@ -143,14 +143,18 @@ trap 'rm -f "$tmpdescinstances"' EXIT
 
 cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' > "$tmpdescinstances" 
 
-
-
       if  [[ -s $excludelist ]]; then
         #prints lines in file1 excluding any in which the thrid column matches lines from file2
         descinstances=$(awk 'NR==FNR{a[$0];next} !($3 in a)' "$excludelist" "$tmpdescinstances")
       else
         descinstances=$(cat $tmpdescinstances)
       fi
+
+
+if [[ $verbose == true ]]; then
+  echo "Client:$(basename "${client%.*}") Zone:"$zone" Listing instances and associated volumes"
+  cat $tmpdescinstances
+fi
 
 rm -f $tmpdescinstances
 
@@ -186,6 +190,15 @@ getdvol() {
 unset listofsnapshots
 #This is the main logic for parsing instances with regards to  determinig which snapshots are associated with which instance.
 listofsnapshots=$(awk 'NR==FNR{a[$1];next} !($1 in a)' <(cat "$LOGDIR"volumes-"$zone"-"$(basename ${client%.*})" | grep "in-use"  | grep snap | awk {'print $4'} | sort | uniq ) <(cat "$LOGDIR"snapshots-"$zone"-"$(basename ${client%.*})" | grep SNAPSHOT | awk '{ print $2 " " $3 " " $5 }' | sed 's,\+.*,,g' | sort -k2 | head -c -1 ) )
+
+#todo this is too long make it a file with a trap
+if [[ $verbose == true ]]; then
+  echo "Client:$(basename "${client%.*}") Zone:"$zone" Listing snapshots and associated volumes" 
+  while read -r line; do
+        echo "$line"
+      done <<< "$listofsnapshots"
+  
+fi
 
   #get the uniq list of volume names in $listofsnapshots
   getdvol=()
@@ -386,11 +399,12 @@ usage: $0 [OPTIONS]
  -k  Choose key dir
  -c  Specify which detected accounts you with to run the script against. 
  -a  Specify which avaliablility zones you wish to run the script against.
- -e  Specify a file with a list of volumes to exclude from being snapshotted
+ -e  Specify a file with a new line delimited list of volumes to exclude from being snapshotted
 
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
 Example Delete mode saving the 15 most recent snapshots  :$0  -d 15
 Example Test keeping 15 snapshots for client enovance verbose mode: $0 -t -d 15 -c enovance -v
+Example Test Snapshoting all attached volumes except those listed in /tmp/exclude: $0 -t -s -e /tmp/exclude
 Note: keys must be in the format projectname.key and projectname.pub
 
 zones: eu-west-1 sa-east-1 us-east-1 ap-northeast-1 us-west-2 us-west-1 ap-southeast-1 ap-southeast-2
