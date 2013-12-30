@@ -1,34 +1,40 @@
 #!/bin/bash
 
+#TODO
+#check how old the log file is? refue to run if the og file is too old? perhaps?
+#figure out how to not cat the entire log. we may only need todays log..
+
 # Sanity check
-if [[ $# -ne 2 ]] || ! [[ -e $1 ]]; then
-        echo "Usage: $0 /path/to/aws/logfile.log numberofsnapshotstokeep"
-        exit
+if [[ $# -lt 1 ]] || ! [[ -e $1 ]]; then
+
+        echo "Usage:" 
+        echo "To check for criticals: ./$0 /path/to/aws/logfile.log"
+        echo "To clear criticals: ./$0 /path/to/aws/logfile.log clear"
+        exit 2
+fi
+
+if [[ $2 == "clear" ]];
+then
+  sed -i 's/CRITICAL/CLEARED/' "$1"
+else
+
+#read log file
+  stt=$(cat "$1" | grep "All Snapshots taken today" | tail -n 1 | awk 'BEGIN { FS = ":" } ; { print $7 }' )
+  tmv=$(cat "$1" | grep "All Total number of Mounted Volumes" | tail -n 1 | awk 'BEGIN { FS = ":" } ; { print $7 }')
+  sdt=$(cat "$1" | grep "All Snapshots deleted today" | tail -n 1 | awk 'BEGIN { FS = ":" } ; { print $7 }')
+  crit=$(cat "$1" | grep "CRITICAL" | tail -n 1 | awk 'BEGIN { FS = ":" } ; { print $7 $8 }')
+
+if ! [[ -z $crit ]]; then
+  echo $crit; exit 2
+elif ! ((stt==tmv)); then 
+  echo "WARNING - snapshots take today $stt total mounted volumes $tmv"; exit 1
+elif ! ((stt==sdt)); then
+  echo "WARNING - Snapshots taken today $stt Snapshots deleted today $sdt"; exit 1
+else
+  echo "OK - snpashots taken today: $stt snapshosts deleted: $sdt total mounted volumes: $tmv"; exit 0
 fi
 
 
-  volumes=0
-
-for zones in $(cat tmp_zones);
-do
-  volumes=$(($num+$(cat "$1" | grep "$(tail -n1 "$1" | awk '{print $1}')" | grep "$zones" | grep "Mounted Volumes" | awk '{print $5}')))
-done
-
-
-
-
-for x in CRITICAL WARNING OK ; do
-num="$(cat "$1" | grep $(tail -n1 "$1" | awk '{print $1}') | grep "$x" | wc -l )"
-  if [[  "$num" -gt 0 ]]; then
-
-    if [[ $x = "CRITICAL" ]]; then echo "$x - $num critical errors have occured, please check the logs"; exit 2
-    elif [[ $x = "WARNING" ]]; then echo "$x - $num of $volumes volumes have fewer than "$2" snapshots"; exit 1
-    elif [[ $x = "OK" ]]; then echo "$x - $num snapshots taken of $volumes attached volumes"; exit 0
-    fi
-  fi
-  
-
-done
-
+fi
 
 
