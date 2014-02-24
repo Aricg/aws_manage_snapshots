@@ -84,5 +84,14 @@ export PATH=$PATH:$EC2_HOME/bin
 export EC2_URL=http://ec2.amazonaws.com
 ```
 
+Adding a new client for backups at eNovance.
+* log in to https://console.aws.amazon.com/console/home?#
+* On the top navigation bar, click project-name -> Security and Credentials.
+* Click on X.509 certificats -> Create New Certificate
+* Renames Certificates ProjectName.pub and ProjectName.key
+* Copy certificates to  eno-ec2.mut-10.hosting.enovance.com:/etc/ssl/private/aws/ 
+
+
+
 
 
