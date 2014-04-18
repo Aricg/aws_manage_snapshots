@@ -404,13 +404,14 @@ usage: $0 [OPTIONS]
  -k  Choose key dir
  -c  Specify which detected accounts you with to run the script against. 
  -a  Specify which avaliablility zones you wish to run the script against.
- -e  Specify a file with a new line delimited list of volumes to exclude from being snapshotted
+ -e  Specify a file with a new line delimited list of instances whose volumes should be exclude from being snapshotted
 
 Example Snapshot mode  :$0  -s -l $LOGDIR -k $KEYDIR
 Example Delete mode saving the 15 most recent snapshots  :$0  -d 15
 Example Test keeping 15 snapshots for client enovance verbose mode: $0 -t -d 15 -c enovance -v
 Example Test Snapshoting all attached volumes except those listed in /tmp/exclude: $0 -t -s -e /tmp/exclude
 Note: keys must be in the format projectname.key and projectname.pub
+Note: to generate list for -e switch, tag instances "backup = no" and run excludetaggedfiles.bash
 
 zones: eu-west-1 sa-east-1 us-east-1 ap-northeast-1 us-west-2 us-west-1 ap-southeast-1 ap-southeast-2
 
