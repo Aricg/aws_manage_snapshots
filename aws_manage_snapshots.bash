@@ -19,6 +19,11 @@ LOGDIR="/var/log/aws/"
 KEYDIR="/etc/ssl/private/aws/"
 certs=("$KEYDIR"*.key)
 
+export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+export EC2_HOME=/opt/ec2api/
+export EC2_URL=http://ec2.amazonaws.com
+export PATH=$PATH:$EC2_HOME/bin
+
 #put your exports here, so that crons work and stuff
 if [ -f exports ]; then
 source exports
@@ -144,8 +149,8 @@ trap 'rm -f "$tmpdescinstances"' EXIT
 cat "$LOGDIR"instances-"$zone"-"$(basename "${client%.*}")" | grep -v RESERVATION | grep -v TAG | grep -v GROUP | grep -v NIC | grep -v PRIVATEIP | awk '{print $2 " " $3  }' | sed 's,ami.*,,g' | sed -E '/^i-/ i\\n' | awk 'BEGIN { FS="\n"; RS="";} { for (i=2; i<=NF; i+=1){print $1 " " $i}}' > "$tmpdescinstances" 
 
       if  [[ -s $excludelist ]]; then
-        #prints lines in file1 excluding any in which the thrid column matches lines from file2
-        descinstances=$(awk 'NR==FNR{a[$0];next} !($3 in a)' "$excludelist" "$tmpdescinstances")
+        #prints lines in file1 excluding any in which the first column (instanceid) matches lines from file2
+        descinstances=$(awk 'NR==FNR{a[$0];next} !($1 in a)' "$excludelist" "$tmpdescinstances")
       else
         descinstances=$(cat $tmpdescinstances)
       fi
