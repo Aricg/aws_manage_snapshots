@@ -12,12 +12,13 @@ usage: ./aws_manage_snapshots.bash [OPTIONS]
  -k  Choose key dir
  -c  Specify which detected accounts you with to run the script against.
  -a  Specify which avaliablility zones you wish to run the script against.
- -e  Specify a file with a list of volumes to exclude from being snapshotted
+ -e  Specify a file with a new line delimited list of instances whose volumes should be exclude from being snapshotted
 
 Example Snapshot mode  :./aws_manage_snapshots.bash  -s -l /var/log/aws/ -k /etc/ssl/private/aws/
 Example Delete mode saving the 15 most recent snapshots  :./aws_manage_snapshots.bash  -d 15
 Example Test keeping 15 snapshots for client enovance verbose mode: ./aws_manage_snapshots.bash -t -d 15 -c enovance -v
 Note: keys must be in the format projectname.key and projectname.pub
+Note: to generate list for -e switch, tag instances "backup = no" and run excludetaggedfiles.bash
 
 ```
 
