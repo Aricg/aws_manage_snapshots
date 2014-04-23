@@ -90,7 +90,7 @@ Adding a new client for backups at eNovance.
 * On the top navigation bar, click project-name -> Security and Credentials.
 * Click on X.509 certificats -> Create New Certificate
 * Renames Certificates ProjectName.pub and ProjectName.key
-* Copy certificates to  eno-ec2.mut-10.hosting.enovance.com:/etc/ssl/private/aws/ 
+* Copy certificates to fooserver.com/etc/ssl/private/aws/ 
 
 
 
