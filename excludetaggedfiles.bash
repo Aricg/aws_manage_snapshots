@@ -27,5 +27,3 @@ echo "Checking Zone $zone"
     done
 
 done
-
-#need to make a list of which instances have which volumes.
