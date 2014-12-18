@@ -16,7 +16,7 @@ usage: ./aws_manage_snapshots.bash [OPTIONS]
 
 Example Snapshot mode  :./aws_manage_snapshots.bash  -s -l /var/log/aws/ -k /etc/ssl/private/aws/
 Example Delete mode saving the 15 most recent snapshots  :./aws_manage_snapshots.bash  -d 15
-Example Test keeping 15 snapshots for client enovance verbose mode: ./aws_manage_snapshots.bash -t -d 15 -c enovance -v
+Example Test keeping 15 snapshots for client foocorp verbose mode: ./aws_manage_snapshots.bash -t -d 15 -c foocorp -v
 Note: keys must be in the format projectname.key and projectname.pub
 Note: to generate list for -e switch, tag instances "backup = no" and run excludetaggedfiles.bash
 
