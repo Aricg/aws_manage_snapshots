@@ -40,7 +40,7 @@ INSTALLING IN DEBIAN
 ====================
 
 
-Get *shudder* java
+Get java
 ```
 apt-get install default-jre-headless unzip git
 export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
