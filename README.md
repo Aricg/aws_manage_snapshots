@@ -72,7 +72,7 @@ mkdir /etc/ssl/private/aws/
 #mv your key pairs into the key dir (default /etc/ssl/private/aws/)
 
 :/opt/aws_manage_snapshots# ./aws_manage_snapshots.bash -t
-2013/11/29 16:04:00: running ec2-describe-instances to list enovance's volumes and attachements in eu-west-1 avaliablity zone
+2013/11/29 16:04:00: running ec2-describe-instances to list example companies volumes and attachements in eu-west-1 avaliablity zone
 ...
 [/snip]
 ```
@@ -89,7 +89,7 @@ Adding a new client for backups at eNovance.
 * log in to https://console.aws.amazon.com/console/home?#
 * On the top navigation bar, click project-name -> Security and Credentials.
 * Click on X.509 certificats -> Create New Certificate
-* Renames Certificates ProjectName.pub and ProjectName.key
+* Rename Certificates to ProjectName.pub and ProjectName.key
 * Copy certificates to fooserver.com/etc/ssl/private/aws/ 
 
 
