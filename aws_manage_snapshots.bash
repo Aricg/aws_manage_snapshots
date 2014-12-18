@@ -19,7 +19,10 @@ LOGDIR="/var/log/aws/"
 KEYDIR="/etc/ssl/private/aws/"
 certs=("$KEYDIR"*.key)
 
-export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+if [ -z "$JAVA_HOME" ]; then
+	export JAVA_HOME="/usr/lib/jvm/java-6-openjdk-amd64/"
+fi
+
 export EC2_HOME=/opt/ec2api/
 export EC2_URL=http://ec2.amazonaws.com
 export PATH=$PATH:$EC2_HOME/bin
